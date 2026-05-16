@@ -21,9 +21,16 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.meta.auth && !auth.isLoggedIn) return '/login'
-  if (to.meta.guest && auth.isLoggedIn) return '/'
-  if (to.meta.admin && !auth.user?.is_admin) return '/'
+
+  if (to.meta.auth && !auth.isLoggedIn) {
+    return { path: '/login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : undefined }
+  }
+  if (to.meta.guest && auth.isLoggedIn) {
+    return '/'
+  }
+  if (to.meta.admin && !auth.user?.is_admin) {
+    return '/'
+  }
 })
 
 export default router
