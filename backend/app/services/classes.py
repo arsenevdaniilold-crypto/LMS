@@ -83,6 +83,17 @@ def is_teacher_role(role: MemberRole) -> bool:
     return role in (MemberRole.teacher_creator, MemberRole.teacher)
 
 
+async def get_member_ids(
+    db: AsyncSession,
+    class_id: uuid.UUID,
+    roles: tuple[MemberRole, ...] | None = None,
+) -> list[uuid.UUID]:
+    stmt = select(ClassMember.user_id).where(ClassMember.class_id == class_id)
+    if roles is not None:
+        stmt = stmt.where(ClassMember.role.in_(roles))
+    return [row[0] for row in (await db.execute(stmt)).all()]
+
+
 async def _count_members(db: AsyncSession, class_id: uuid.UUID) -> int:
     result = await db.execute(
         select(func.count(ClassMember.id)).where(ClassMember.class_id == class_id)

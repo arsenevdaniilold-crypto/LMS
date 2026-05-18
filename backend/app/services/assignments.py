@@ -12,6 +12,7 @@ from app.models.class_ import Class, ClassMember
 from app.models.enums import AssignmentType, GradeType, GradingType, MaterialType, MemberRole
 from app.models.user import User
 from app.services import classes as classes_service
+from app.services import notifications as notifications_service
 from app.services.classes import ClassError
 from app.services.minio_storage import minio_storage
 from app.utils.files import validate_upload
@@ -151,6 +152,23 @@ async def create_assignment(
     materials_result = await db.execute(
         select(AssignmentMaterial).where(AssignmentMaterial.assignment_id == assignment.id)
     )
+
+    student_ids = await classes_service.get_member_ids(db, cls.id, roles=(MemberRole.student,))
+    await notifications_service.notify(
+        db,
+        student_ids,
+        "assignment_created",
+        {
+            "class_id": str(cls.id),
+            "class_name": cls.name,
+            "assignment_id": str(assignment.id),
+            "name": assignment.name,
+            "type": assignment.type.value,
+            "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
+        },
+    )
+    await db.commit()
+
     return _serialize(assignment, list(materials_result.scalars().all()), author)
 
 

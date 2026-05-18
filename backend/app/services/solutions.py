@@ -12,6 +12,7 @@ from app.models.enums import AssignmentType, GradingType, MemberRole, SolutionSt
 from app.models.solution import GradeRedistribution, Solution, SolutionFile
 from app.models.user import User
 from app.services import classes as classes_service
+from app.services import notifications as notifications_service
 from app.services.classes import ClassError
 from app.services.minio_storage import minio_storage
 from app.utils.files import validate_upload
@@ -366,6 +367,13 @@ async def submit_solution(
     return await _serialize(db, solution)
 
 
+async def _solution_recipients(db: AsyncSession, solution: Solution) -> list[uuid.UUID]:
+    if solution.group_id is not None:
+        members = await _get_group_members(db, solution.group_id)
+        return [m.id for m in members]
+    return [solution.creator_id]
+
+
 async def _ensure_teacher(db: AsyncSession, assignment: Assignment, current_user: User) -> None:
     membership = await classes_service.get_membership(db, assignment.class_id, current_user.id)
     if (membership is None or not classes_service.is_teacher_role(membership.role)) and not current_user.is_admin:
@@ -386,6 +394,18 @@ async def return_solution(
             409,
         )
     solution.status = SolutionStatus.returned
+    await db.flush()
+    await notifications_service.notify(
+        db,
+        await _solution_recipients(db, solution),
+        "solution_returned",
+        {
+            "solution_id": str(solution.id),
+            "assignment_id": str(assignment.id),
+            "assignment_name": assignment.name,
+            "class_id": str(assignment.class_id),
+        },
+    )
     await db.commit()
     await db.refresh(solution)
     return await _serialize(db, solution)
@@ -413,8 +433,24 @@ async def grade_solution(
         and assignment.grading_type == GradingType.individual
     ):
         solution.status = SolutionStatus.pending_redistribution
+        notif_type = "solution_pending_redistribution"
     else:
         solution.status = SolutionStatus.graded
+        notif_type = "solution_graded"
+
+    await db.flush()
+    await notifications_service.notify(
+        db,
+        await _solution_recipients(db, solution),
+        notif_type,
+        {
+            "solution_id": str(solution.id),
+            "assignment_id": str(assignment.id),
+            "assignment_name": assignment.name,
+            "class_id": str(assignment.class_id),
+            "grade": str(solution.grade) if solution.grade is not None else None,
+        },
+    )
     await db.commit()
     await db.refresh(solution)
     return await _serialize(db, solution)
@@ -483,6 +519,19 @@ async def redistribute_solution(
         db.add(GradeRedistribution(solution_id=solution.id, user_id=uid, grade=g))
 
     solution.status = SolutionStatus.graded
+    await db.flush()
+    await notifications_service.notify(
+        db,
+        [m.id for m in members],
+        "solution_graded",
+        {
+            "solution_id": str(solution.id),
+            "assignment_id": str(assignment.id),
+            "assignment_name": assignment.name,
+            "class_id": str(assignment.class_id),
+            "redistributed": True,
+        },
+    )
     await db.commit()
     await db.refresh(solution)
     return await _serialize(db, solution)

@@ -10,6 +10,7 @@ from app.models.class_ import Class
 from app.models.enums import MemberRole
 from app.models.user import User
 from app.services import classes as classes_service
+from app.services import notifications as notifications_service
 from app.services.classes import ClassError
 from app.services.minio_storage import minio_storage
 from app.utils.files import validate_upload
@@ -98,6 +99,23 @@ async def create_announcement(
     files_result = await db.execute(
         select(AnnouncementFile).where(AnnouncementFile.announcement_id == announcement.id)
     )
+
+    member_ids = await classes_service.get_member_ids(db, cls.id)
+    recipients = [uid for uid in member_ids if uid != author.id]
+    await notifications_service.notify(
+        db,
+        recipients,
+        "announcement_created",
+        {
+            "class_id": str(cls.id),
+            "class_name": cls.name,
+            "announcement_id": str(announcement.id),
+            "title": announcement.title,
+            "author_username": author.username,
+        },
+    )
+    await db.commit()
+
     return _serialize(announcement, list(files_result.scalars().all()), author)
 
 
