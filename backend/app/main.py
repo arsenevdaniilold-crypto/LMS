@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from app.config import settings
 from app.limiter import limiter
 from app.routers import health
-from app.routers import auth, users
+from app.routers import auth, users, classes
 
 app = FastAPI(
     title="LMS API",
@@ -31,6 +31,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(classes.router)
 
 
 @app.exception_handler(HTTPException)
