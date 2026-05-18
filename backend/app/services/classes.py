@@ -79,7 +79,7 @@ async def get_membership(db: AsyncSession, class_id: uuid.UUID, user_id: uuid.UU
     return result.scalar_one_or_none()
 
 
-def _is_teacher_role(role: MemberRole) -> bool:
+def is_teacher_role(role: MemberRole) -> bool:
     return role in (MemberRole.teacher_creator, MemberRole.teacher)
 
 
@@ -193,7 +193,7 @@ async def get_class_detail(db: AsyncSession, class_id: uuid.UUID, current_user: 
     items = await _attach_meta(db, [cls], current_user.id)
     item = items[0]
 
-    if membership is None or not _is_teacher_role(membership.role):
+    if membership is None or not is_teacher_role(membership.role):
         item["invite_code"] = None
 
     return item
@@ -202,7 +202,7 @@ async def get_class_detail(db: AsyncSession, class_id: uuid.UUID, current_user: 
 async def update_class(db: AsyncSession, class_id: uuid.UUID, current_user: User, name: str | None) -> dict:
     cls = await get_class_or_404(db, class_id)
     membership = await get_membership(db, class_id, current_user.id)
-    if membership is None or not _is_teacher_role(membership.role):
+    if membership is None or not is_teacher_role(membership.role):
         raise ClassError("FORBIDDEN", "Only teachers can update class", 403)
 
     if name is not None:
@@ -283,7 +283,7 @@ async def list_members(db: AsyncSession, class_id: uuid.UUID, current_user: User
 async def invite_teacher(db: AsyncSession, class_id: uuid.UUID, current_user: User, email: str) -> dict:
     cls = await get_class_or_404(db, class_id)
     current_membership = await get_membership(db, class_id, current_user.id)
-    if current_membership is None or not _is_teacher_role(current_membership.role):
+    if current_membership is None or not is_teacher_role(current_membership.role):
         raise ClassError("FORBIDDEN", "Only teachers can invite teachers", 403)
 
     user_result = await db.execute(
@@ -319,7 +319,7 @@ async def invite_teacher(db: AsyncSession, class_id: uuid.UUID, current_user: Us
 async def remove_member(db: AsyncSession, class_id: uuid.UUID, target_user_id: uuid.UUID, current_user: User) -> None:
     cls = await get_class_or_404(db, class_id)
     current_membership = await get_membership(db, class_id, current_user.id)
-    if current_membership is None or not _is_teacher_role(current_membership.role):
+    if current_membership is None or not is_teacher_role(current_membership.role):
         raise ClassError("FORBIDDEN", "Only teachers can remove members", 403)
 
     target_membership = await get_membership(db, class_id, target_user_id)
