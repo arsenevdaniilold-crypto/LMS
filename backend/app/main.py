@@ -10,7 +10,7 @@ from slowapi import _rate_limit_exceeded_handler
 from app.config import settings
 from app.limiter import limiter
 from app.routers import health
-from app.routers import auth, users, classes, announcements, assignments
+from app.routers import auth, users, classes, announcements, assignments, solutions
 from app.services.minio_storage import minio_storage
 
 
@@ -45,6 +45,7 @@ app.include_router(users.router)
 app.include_router(classes.router)
 app.include_router(announcements.router)
 app.include_router(assignments.router)
+app.include_router(solutions.router)
 
 
 @app.exception_handler(HTTPException)
