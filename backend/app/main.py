@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,13 +10,22 @@ from slowapi import _rate_limit_exceeded_handler
 from app.config import settings
 from app.limiter import limiter
 from app.routers import health
-from app.routers import auth, users, classes
+from app.routers import auth, users, classes, announcements, assignments
+from app.services.minio_storage import minio_storage
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    minio_storage.ensure_bucket()
+    yield
+
 
 app = FastAPI(
     title="LMS API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -32,6 +43,8 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(classes.router)
+app.include_router(announcements.router)
+app.include_router(assignments.router)
 
 
 @app.exception_handler(HTTPException)
