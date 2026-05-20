@@ -167,3 +167,98 @@ input.has-error:focus {
   font-size: 13px;
   margin-bottom: 16px;
 }
+
+.muted {
+  color: var(--color-text-muted);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.page {
+  padding: 24px 0 48px;
+}
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #b91c1c;
+}
+.btn-success {
+  background: var(--color-success);
+  color: #fff;
+}
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.tag-success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.tag-warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.tag-danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.tag-info { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg);
+}
+table.data-table th,
+table.data-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+table.data-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+}
+
+@media (max-width: 640px) {
+  .page-title { font-size: 20px; }
+}
+
+/* Narrow phones (down to 320px): tighten spacing and keep content from
+   overflowing horizontally. */
+@media (max-width: 380px) {
+  body { font-size: 15px; }
+  .container { padding: 0 10px; }
+  .card { padding: 14px; }
+  .page { padding: 16px 0 32px; }
+  .page-title { font-size: 18px; }
+  .section-title { font-size: 16px; }
+  /* let header-style rows wrap instead of overflowing */
+  .row-between { flex-wrap: wrap; }
+  /* full-width primary actions read better on tiny screens */
+  .auth-card { padding: 20px; }
+  table.data-table th,
+  table.data-table td { padding: 8px 10px; font-size: 13px; }
+}
