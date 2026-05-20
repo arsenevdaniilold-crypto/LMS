@@ -235,17 +235,7 @@ async def delete_class(db: AsyncSession, class_id: uuid.UUID, current_user: User
     await db.commit()
 
 
-async def join_by_invite_code(db: AsyncSession, current_user: User, invite_code: str) -> dict:
-    result = await db.execute(
-        select(Class).where(
-            Class.invite_code == invite_code,
-            Class.deleted_at.is_(None),
-        )
-    )
-    cls = result.scalar_one_or_none()
-    if cls is None:
-        raise ClassError("INVALID_INVITE_CODE", "Invalid invite code", 404)
-
+async def _join_as_student(db: AsyncSession, cls: Class, current_user: User) -> dict:
     existing = await get_membership(db, cls.id, current_user.id)
     if existing is not None:
         raise ClassError("ALREADY_MEMBER", "You are already a member of this class", 409)
@@ -263,6 +253,26 @@ async def join_by_invite_code(db: AsyncSession, current_user: User, invite_code:
 
     items = await _attach_meta(db, [cls], current_user.id)
     return items[0]
+
+
+async def join_by_invite_code(db: AsyncSession, current_user: User, invite_code: str) -> dict:
+    result = await db.execute(
+        select(Class).where(
+            Class.invite_code == invite_code,
+            Class.deleted_at.is_(None),
+        )
+    )
+    cls = result.scalar_one_or_none()
+    if cls is None:
+        raise ClassError("INVALID_INVITE_CODE", "Invalid invite code", 404)
+    return await _join_as_student(db, cls, current_user)
+
+
+async def join_open_class(db: AsyncSession, current_user: User, class_id: uuid.UUID) -> dict:
+    cls = await get_class_or_404(db, class_id)
+    if cls.type != ClassType.open:
+        raise ClassError("NOT_OPEN_CLASS", "Only open classes can be joined by id", 403)
+    return await _join_as_student(db, cls, current_user)
 
 
 async def list_members(db: AsyncSession, class_id: uuid.UUID, current_user: User) -> list[dict]:

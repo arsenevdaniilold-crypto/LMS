@@ -79,6 +79,18 @@ async def join_class(
         _raise_class_error(exc)
 
 
+@router.post("/{class_id}/join", response_model=ClassDetailResponse)
+async def join_open_class(
+    class_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await classes_service.join_open_class(db, current_user, class_id)
+    except ClassError as exc:
+        _raise_class_error(exc)
+
+
 @router.get("/{class_id}", response_model=ClassDetailResponse)
 async def get_class(
     class_id: uuid.UUID,

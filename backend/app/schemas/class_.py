@@ -65,13 +65,13 @@ class ClassResponse(BaseModel):
     creator: CreatorResponse | None = None
     created_at: datetime
     member_count: int = 0
+    my_role: MemberRole | None = None
 
     model_config = {"from_attributes": True}
 
 
 class ClassDetailResponse(ClassResponse):
     invite_code: str | None = None
-    my_role: MemberRole | None = None
 
 
 class ClassMemberResponse(BaseModel):
