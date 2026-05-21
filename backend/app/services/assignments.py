@@ -241,6 +241,22 @@ async def update_assignment(
         assignment.description = description
     if deadline is not None:
         assignment.deadline = deadline
+    await db.flush()
+
+    cls = await classes_service.get_class_or_404(db, assignment.class_id)
+    student_ids = await classes_service.get_member_ids(db, assignment.class_id, roles=(MemberRole.student,))
+    await notifications_service.notify(
+        db,
+        student_ids,
+        "assignment_updated",
+        {
+            "class_id": str(assignment.class_id),
+            "class_name": cls.name,
+            "assignment_id": str(assignment.id),
+            "name": assignment.name,
+            "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
+        },
+    )
     await db.commit()
     await db.refresh(assignment)
     return await get_assignment_detail(db, assignment.id, current_user)
@@ -261,7 +277,24 @@ async def delete_assignment(db: AsyncSession, assignment_id: uuid.UUID, current_
     )
     materials = list(materials_result.scalars().all())
 
+    # Collect recipients and class info before the row is gone.
+    class_id = assignment.class_id
+    cls = await classes_service.get_class_or_404(db, class_id)
+    student_ids = await classes_service.get_member_ids(db, class_id, roles=(MemberRole.student,))
+    assignment_name = assignment.name
+
     await db.delete(assignment)
+    await notifications_service.notify(
+        db,
+        student_ids,
+        "assignment_deleted",
+        {
+            "class_id": str(class_id),
+            "class_name": cls.name,
+            "assignment_id": str(assignment_id),
+            "name": assignment_name,
+        },
+    )
     await db.commit()
 
     for m in materials:

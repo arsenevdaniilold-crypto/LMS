@@ -74,8 +74,16 @@ function titleFor(n: Notification): string {
   switch (n.type) {
     case 'announcement_created':
       return `Новое объявление в ${p.class_name || 'классе'}: ${p.title || ''}`
+    case 'announcement_updated':
+      return `Объявление изменено в ${p.class_name || 'классе'}: ${p.title || ''}`
+    case 'announcement_deleted':
+      return `Объявление удалено в ${p.class_name || 'классе'}`
     case 'assignment_created':
       return `Новое задание в ${p.class_name || 'классе'}: ${p.name || ''}`
+    case 'assignment_updated':
+      return `Задание изменено в ${p.class_name || 'классе'}: ${p.name || ''}`
+    case 'assignment_deleted':
+      return `Задание удалено в ${p.class_name || 'классе'}: ${p.name || ''}`
     case 'solution_graded':
       return p.redistributed
         ? `Оценки распределены: ${p.assignment_name || ''}`
@@ -103,9 +111,12 @@ async function onClick(n: Notification) {
   await notif.markOneRead(n.id)
   const p = n.payload as Record<string, string>
   open.value = false
-  if (n.type === 'announcement_created' && p.class_id) {
+  if (n.type.startsWith('announcement_') && p.class_id) {
     await router.push(`/classes/${p.class_id}`)
-  } else if (n.type === 'assignment_created' && p.assignment_id) {
+  } else if (n.type === 'assignment_deleted' && p.class_id) {
+    // assignment is gone — go to the class
+    await router.push(`/classes/${p.class_id}`)
+  } else if ((n.type === 'assignment_created' || n.type === 'assignment_updated') && p.assignment_id) {
     await router.push(`/assignments/${p.assignment_id}`)
   } else if (
     (n.type === 'solution_graded' ||

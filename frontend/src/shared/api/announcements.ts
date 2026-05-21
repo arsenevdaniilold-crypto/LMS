@@ -24,6 +24,19 @@ export async function createAnnouncement(
   return data
 }
 
+export interface UpdateAnnouncementPayload {
+  title?: string
+  text?: string
+}
+
+export async function updateAnnouncement(
+  id: string,
+  payload: UpdateAnnouncementPayload,
+): Promise<Announcement> {
+  const { data } = await http.patch<Announcement>(`/announcements/${id}`, payload)
+  return data
+}
+
 export async function deleteAnnouncement(id: string): Promise<void> {
   await http.delete(`/announcements/${id}`)
 }

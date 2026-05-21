@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getAssignment, listGroups } from '@/shared/api/assignments'
 import { listSolutions } from '@/shared/api/solutions'
 import { getClass } from '@/shared/api/classes'
@@ -115,6 +115,7 @@ import SolutionDraftForm from '@/shared/ui/SolutionDraftForm.vue'
 import SolutionCard from '@/shared/ui/SolutionCard.vue'
 
 const route = useRoute()
+const router = useRouter()
 const assignment = ref<Assignment | null>(null)
 const groups = ref<Group[]>([])
 const solutions = ref<Solution[]>([])
@@ -126,16 +127,32 @@ const isTeacher = ref(false)
 const unsub = onNotification((n) => {
   const p = n.payload as Record<string, string>
   if (!assignment.value) return
+  if (p.assignment_id !== assignment.value.id) return
+
   if (
-    p.assignment_id === assignment.value.id &&
-    (n.type === 'solution_graded' ||
-      n.type === 'solution_returned' ||
-      n.type === 'solution_pending_redistribution')
+    n.type === 'solution_graded' ||
+    n.type === 'solution_returned' ||
+    n.type === 'solution_pending_redistribution'
   ) {
     void loadSolutions()
+  } else if (n.type === 'assignment_updated') {
+    void reloadAssignment()
+  } else if (n.type === 'assignment_deleted') {
+    // The assignment is gone — leave the page.
+    const classId = assignment.value.class_id
+    void router.push(`/classes/${classId}`)
   }
 })
 onBeforeUnmount(() => unsub())
+
+async function reloadAssignment() {
+  if (!assignment.value) return
+  try {
+    assignment.value = await getAssignment(assignment.value.id)
+  } catch {
+    /* keep current view if reload fails */
+  }
+}
 
 const isOverdue = computed(() =>
   assignment.value?.deadline ? new Date(assignment.value.deadline) < new Date() : false,

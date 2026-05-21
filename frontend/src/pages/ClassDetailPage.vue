@@ -79,6 +79,7 @@
             :item="item"
             :is-teacher="isTeacher"
             @deleted="onFeedItemDeleted"
+            @updated="onFeedItemUpdated"
           />
         </div>
       </div>
@@ -155,10 +156,14 @@ import NewAnnouncementForm from '@/shared/ui/NewAnnouncementForm.vue'
 import NewAssignmentForm from '@/shared/ui/NewAssignmentForm.vue'
 import FeedItem from '@/shared/ui/FeedItem.vue'
 
+const FEED_EVENTS = new Set([
+  'announcement_created', 'announcement_updated', 'announcement_deleted',
+  'assignment_created', 'assignment_updated', 'assignment_deleted',
+])
 const unsub = onNotification((n) => {
   const p = n.payload as Record<string, string>
   if (!cls.value) return
-  if (p.class_id === cls.value.id && (n.type === 'announcement_created' || n.type === 'assignment_created')) {
+  if (p.class_id === cls.value.id && FEED_EVENTS.has(n.type)) {
     void loadFeed()
   }
 })
@@ -272,6 +277,16 @@ function onFeedItemDeleted(kind: 'announcement' | 'assignment', id: string) {
     announcements.value = announcements.value.filter((x) => x.id !== id)
   } else {
     assignments.value = assignments.value.filter((x) => x.id !== id)
+  }
+}
+
+function onFeedItemUpdated(kind: 'announcement' | 'assignment', data: Announcement | Assignment) {
+  if (kind === 'announcement') {
+    const updated = data as Announcement
+    announcements.value = announcements.value.map((x) => (x.id === updated.id ? updated : x))
+  } else {
+    const updated = data as Assignment
+    assignments.value = assignments.value.map((x) => (x.id === updated.id ? updated : x))
   }
 }
 
