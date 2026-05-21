@@ -26,3 +26,8 @@ class AnnouncementResponse(BaseModel):
     author: AnnouncementAuthorResponse
     created_at: datetime
     files: list[AnnouncementFileResponse]
+
+
+class AnnouncementUpdateRequest(BaseModel):
+    title: str | None = None
+    text: str | None = None

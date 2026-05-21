@@ -1,6 +1,9 @@
 <template>
   <div class="container page">
-    <h1 class="page-title">Администрирование</h1>
+    <header class="admin-hero">
+      <p class="hero-eyebrow">Управление</p>
+      <h1 class="page-title">Администрирование</h1>
+    </header>
 
     <div class="tabs">
       <button
@@ -263,40 +266,75 @@ onMounted(loadUsers)
 </script>
 
 <style scoped>
-.tabs {
-  display: flex;
-  gap: 4px;
+.admin-hero {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--color-border);
-  margin-bottom: 16px;
+}
+.hero-eyebrow {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
 }
 .tab {
   background: transparent;
   border: none;
-  padding: 10px 16px;
+  padding: 8px 18px;
   color: var(--color-text-muted);
   font-size: 14px;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
+.tab:hover { color: var(--color-text); }
 .tab.active {
   color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
 }
 .stat-card {
-  text-align: center;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-primary), #3f8e72);
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .stat-label {
   color: var(--color-text-muted);
-  font-size: 13px;
-  margin-bottom: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 .stat-value {
-  font-size: 28px;
+  font-family: var(--font-display);
+  font-size: 34px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 </style>
