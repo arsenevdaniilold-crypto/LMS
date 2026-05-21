@@ -1,6 +1,9 @@
 # Environment
 .env
 *.env
+# Local prod env (keep the .example template tracked)
+.env.prod
+!.env.prod.example
 
 # Python
 __pycache__/
@@ -25,9 +28,16 @@ frontend/.vite/
 .vscode/
 *.iml
 
+
 # Alembic
 backend/alembic/versions/*.pyc
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Local notes & tools
+.claude/
+CLAUDE.md
+PROJECT_PLAN.md
+cookies.txt
