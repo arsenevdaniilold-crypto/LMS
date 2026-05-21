@@ -149,6 +149,55 @@ async def list_announcements(db: AsyncSession, class_id: uuid.UUID, current_user
     ]
 
 
+async def update_announcement(
+    db: AsyncSession,
+    announcement_id: uuid.UUID,
+    current_user: User,
+    title: str | None,
+    text: str | None,
+) -> dict:
+    result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
+    announcement = result.scalar_one_or_none()
+    if announcement is None:
+        raise ClassError("ANNOUNCEMENT_NOT_FOUND", "Announcement not found", 404)
+
+    is_author = announcement.author_id == current_user.id
+    membership = await classes_service.get_membership(db, announcement.class_id, current_user.id)
+    is_teacher = membership is not None and classes_service.is_teacher_role(membership.role)
+    if not (is_author or is_teacher):
+        raise ClassError("FORBIDDEN", "Only author or teachers can edit the announcement", 403)
+
+    if title is not None:
+        announcement.title = title
+    if text is not None:
+        announcement.text = text
+    await db.flush()
+
+    cls = await classes_service.get_class_or_404(db, announcement.class_id)
+    member_ids = await classes_service.get_member_ids(db, announcement.class_id)
+    recipients = [uid for uid in member_ids if uid != current_user.id]
+    await notifications_service.notify(
+        db,
+        recipients,
+        "announcement_updated",
+        {
+            "class_id": str(announcement.class_id),
+            "class_name": cls.name,
+            "announcement_id": str(announcement.id),
+            "title": announcement.title,
+        },
+    )
+    await db.commit()
+    await db.refresh(announcement)
+
+    files_result = await db.execute(
+        select(AnnouncementFile).where(AnnouncementFile.announcement_id == announcement.id)
+    )
+    author_result = await db.execute(select(User).where(User.id == announcement.author_id))
+    author = author_result.scalar_one()
+    return _serialize(announcement, list(files_result.scalars().all()), author)
+
+
 async def delete_announcement(db: AsyncSession, announcement_id: uuid.UUID, current_user: User) -> None:
     result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
     announcement = result.scalar_one_or_none()
@@ -167,7 +216,23 @@ async def delete_announcement(db: AsyncSession, announcement_id: uuid.UUID, curr
     )
     files = list(files_result.scalars().all())
 
+    # Collect recipients and class info before the row is gone.
+    class_id = announcement.class_id
+    cls = await classes_service.get_class_or_404(db, class_id)
+    member_ids = await classes_service.get_member_ids(db, class_id)
+    recipients = [uid for uid in member_ids if uid != current_user.id]
+
     await db.delete(announcement)
+    await notifications_service.notify(
+        db,
+        recipients,
+        "announcement_deleted",
+        {
+            "class_id": str(class_id),
+            "class_name": cls.name,
+            "announcement_id": str(announcement_id),
+        },
+    )
     await db.commit()
 
     for f in files:

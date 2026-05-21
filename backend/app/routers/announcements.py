@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.announcement import AnnouncementResponse
+from app.schemas.announcement import AnnouncementResponse, AnnouncementUpdateRequest
 from app.services import announcements as announcements_service
 from app.services.classes import ClassError
 
@@ -75,6 +75,41 @@ async def list_announcements(
 ):
     try:
         return await announcements_service.list_announcements(db, class_id, current_user)
+    except ClassError as exc:
+        _raise_class_error(exc)
+
+
+@router.patch(
+    "/api/announcements/{announcement_id}",
+    response_model=AnnouncementResponse,
+)
+async def update_announcement(
+    announcement_id: uuid.UUID,
+    body: AnnouncementUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    title = body.title
+    text = body.text
+    if title is not None:
+        title = title.strip()
+        if len(title) < 1 or len(title) > 255:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "VALIDATION_ERROR", "message": "Title must be 1-255 characters"},
+            )
+    if text is not None:
+        text = text.strip()
+        if len(text) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "VALIDATION_ERROR", "message": "Text is required"},
+            )
+
+    try:
+        return await announcements_service.update_announcement(
+            db, announcement_id, current_user, title, text
+        )
     except ClassError as exc:
         _raise_class_error(exc)
 
