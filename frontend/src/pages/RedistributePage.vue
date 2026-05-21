@@ -25,8 +25,7 @@
         </div>
       </div>
 
-      <div v-if="solution.status !== 'pending_redistribution'" class="card"
-        style="padding: 12px; background: #fef3c7; color: #92400e">
+      <div v-if="solution.status !== 'pending_redistribution'" class="notice-warning">
         Это решение больше не в состоянии перераспределения. Текущий статус: {{ solution.status }}.
       </div>
 
@@ -188,20 +187,34 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.notice-warning {
+  padding: 14px 16px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-radius: var(--radius);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
 .stats {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 22px;
+  padding-top: 20px;
   border-top: 1px solid var(--color-border);
 }
+.stats .row { gap: 14px !important; }
+.stats .row > div {
+  flex: 1;
+  padding: 14px 16px;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius);
+}
 .big-number {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
+  margin-top: 4px;
 }
-.big-number.mean-ok {
-  color: var(--color-success);
-}
-.big-number.mean-bad {
-  color: var(--color-danger);
-}
+.big-number.mean-ok { color: var(--color-success); }
+.big-number.mean-bad { color: var(--color-danger); }
 </style>

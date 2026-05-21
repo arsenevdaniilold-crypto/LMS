@@ -217,10 +217,11 @@ onMounted(async () => {
 
 <style scoped>
 .group-row {
-  padding: 8px 12px;
-  background: var(--color-bg);
+  padding: 10px 14px;
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-size: 14px;
 }
+.group-row strong { color: var(--color-primary); }
 </style>

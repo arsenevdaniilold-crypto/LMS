@@ -1,9 +1,19 @@
 <template>
   <div class="container page">
-    <h1 class="page-title">Профиль</h1>
+    <header class="profile-hero reveal">
+      <p class="hero-eyebrow">Аккаунт</p>
+      <h1 class="page-title">Профиль</h1>
+    </header>
 
     <div v-if="!auth.user" class="card muted">Загрузка…</div>
-    <div v-else class="card" style="max-width: 600px">
+    <div v-else class="card profile-card reveal" style="max-width: 600px; animation-delay: 60ms">
+      <div class="profile-identity">
+        <span class="profile-avatar">{{ (auth.user.username || '?').charAt(0).toUpperCase() }}</span>
+        <div>
+          <div class="profile-name">{{ auth.user.username }}</div>
+          <div class="muted" style="font-size: 13px">{{ auth.user.email }}</div>
+        </div>
+      </div>
       <div class="stack">
         <div class="form-group" style="margin-bottom: 0">
           <label>Email</label>
@@ -79,3 +89,47 @@ async function onSave() {
   }
 }
 </script>
+
+<style scoped>
+.profile-hero {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.hero-eyebrow {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+.profile-card { box-shadow: var(--shadow); }
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fdfdfb;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.profile-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+</style>

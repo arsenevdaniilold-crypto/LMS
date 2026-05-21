@@ -34,7 +34,7 @@
       </button>
     </div>
 
-    <div v-if="showEdit" class="card" style="margin-top: 12px; background: var(--color-bg)">
+    <div v-if="showEdit" class="card" style="margin-top: 12px; background: var(--color-surface-sunken)">
       <div class="stack">
         <div class="form-group" style="margin-bottom: 0">
           <label>Текст решения</label>
@@ -60,7 +60,7 @@
     </div>
 
     <!-- Действия преподавателя -->
-    <div v-if="isTeacher && solution.status === 'submitted'" class="card" style="margin-top: 12px; background: var(--color-bg)">
+    <div v-if="isTeacher && solution.status === 'submitted'" class="card" style="margin-top: 12px; background: var(--color-surface-sunken)">
       <div class="stack">
         <div class="row" style="gap: 8px">
           <input
@@ -231,13 +231,18 @@ async function onReturn() {
 </script>
 
 <style scoped>
+.card { box-shadow: var(--shadow-sm); }
 .files {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 10px;
 }
 .files a {
   font-size: 13px;
+  padding: 5px 11px;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-pill);
 }
+.files a:hover { background: var(--color-primary-soft); text-decoration: none; }
 </style>

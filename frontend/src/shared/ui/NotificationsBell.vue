@@ -139,17 +139,20 @@ async function onClick(n: Notification) {
 }
 .bell-btn {
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
+.bell-btn:hover { background: var(--color-surface-sunken); border-color: var(--color-text-subtle); }
 .bell-btn.active {
-  background: var(--color-surface);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
 }
 .bell-icon {
   font-size: 16px;
@@ -181,14 +184,14 @@ async function onClick(n: Notification) {
 .ws-disconnected { background: var(--color-text-muted); }
 .dropdown {
   position: absolute;
-  top: 44px;
+  top: 48px;
   right: 0;
   width: 360px;
   max-height: 480px;
-  background: var(--color-bg);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -201,7 +204,8 @@ async function onClick(n: Notification) {
   justify-content: space-between;
 }
 .dropdown-header h3 {
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: 16px;
   margin: 0;
 }
 .link-btn {
@@ -234,14 +238,15 @@ async function onClick(n: Notification) {
   border-bottom: none;
 }
 .notif-item:hover {
-  background: var(--color-surface);
+  background: var(--color-surface-hover);
 }
 .notif-item.unread {
-  background: #eff6ff;
+  background: var(--color-primary-soft);
 }
+.notif-item.unread .notif-title { font-weight: 600; }
 .notif-title {
   font-size: 13px;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--color-text);
 }
 .notif-meta {

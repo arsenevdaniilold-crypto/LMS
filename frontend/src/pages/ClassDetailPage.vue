@@ -368,22 +368,27 @@ onMounted(async () => {
 
 <style scoped>
 .tabs {
-  display: flex;
+  display: inline-flex;
   gap: 4px;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 16px;
+  padding: 4px;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
 }
 .tab {
   background: transparent;
   border: none;
-  padding: 10px 16px;
+  padding: 8px 18px;
   color: var(--color-text-muted);
   font-size: 14px;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
+.tab:hover { color: var(--color-text); }
 .tab.active {
   color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 </style>
