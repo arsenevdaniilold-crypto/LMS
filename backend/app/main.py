@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,13 +10,57 @@ from slowapi import _rate_limit_exceeded_handler
 from app.config import settings
 from app.limiter import limiter
 from app.routers import health
-from app.routers import auth, users
+from app.routers import auth, users, classes, announcements, assignments, solutions
+from app.routers import notifications, ws, admin
+from app.services.minio_storage import minio_storage
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    minio_storage.ensure_bucket()
+    yield
+
+
+API_DESCRIPTION = """
+Learning Management System API.
+
+## Аутентификация
+JWT в httpOnly-cookie: `access_token` (30 мин) и `refresh_token` (7 дней,
+path=`/api/auth`). Залогиньтесь через `POST /api/auth/login` — браузер сам
+будет слать cookie. При истечении access-токена дёрните `POST /api/auth/refresh`.
+
+## Формат ошибок
+Все ошибки имеют единое тело:
+
+```json
+{ "detail": { "code": "MACHINE_CODE", "message": "Human readable text" } }
+```
+
+`code` — стабильный машиночитаемый идентификатор (например `INVALID_CREDENTIALS`,
+`GRADE_OUT_OF_RANGE`, `MEAN_MISMATCH`, `FORBIDDEN`), `message` — пояснение.
+Ошибки валидации Pydantic приходят с `code = "VALIDATION_ERROR"` и статусом 422.
+"""
+
+TAGS_METADATA = [
+    {"name": "auth", "description": "Регистрация, вход, выход, ротация токенов."},
+    {"name": "users", "description": "Профиль текущего пользователя."},
+    {"name": "classes", "description": "Классы, участники, приглашения, вступление."},
+    {"name": "announcements", "description": "Объявления в классе и вложения."},
+    {"name": "assignments", "description": "Задания, материалы, группы (auto/manual)."},
+    {"name": "solutions", "description": "Решения, статусы, оценивание, перераспределение, сводка оценок."},
+    {"name": "notifications", "description": "In-app уведомления (список и отметка прочитанным)."},
+    {"name": "admin", "description": "Администрирование: пользователи, классы, статистика."},
+    {"name": "health", "description": "Проверка живости сервиса."},
+]
 
 app = FastAPI(
     title="LMS API",
     version="1.0.0",
+    description=API_DESCRIPTION,
+    openapi_tags=TAGS_METADATA,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -31,6 +77,13 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(classes.router)
+app.include_router(announcements.router)
+app.include_router(assignments.router)
+app.include_router(solutions.router)
+app.include_router(notifications.router)
+app.include_router(admin.router)
+app.include_router(ws.router)
 
 
 @app.exception_handler(HTTPException)
