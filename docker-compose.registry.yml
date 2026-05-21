@@ -1,0 +1,80 @@
+# Registry compose: pulls prebuilt images from Docker Hub instead of building
+# from source. Use this to run the stack on a machine that does not have the
+# git repo. Only this file and an .env.registry are needed.
+#
+#   docker compose -f docker-compose.registry.yml --env-file .env.registry up -d
+#   docker compose -f docker-compose.registry.yml --env-file .env.registry exec backend alembic upgrade head
+#
+# Images are published as:
+#   docker.io/arsenevdaniilold/lms-backend:latest
+#   docker.io/arsenevdaniilold/lms-frontend:latest
+# Override the tag per service with BACKEND_TAG / FRONTEND_TAG if needed.
+# See .env.registry.example for the required variables.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lms}
+      POSTGRES_USER: ${POSTGRES_USER:-lms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.registry}
+    # No host port mapping: Postgres is reachable only on the compose network.
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lms_user} -d ${POSTGRES_DB:-lms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in .env.registry}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in .env.registry}
+    # S3 API (9000) stays published because presigned download URLs are signed
+    # against MINIO_PUBLIC_ENDPOINT and must be reachable by the browser.
+    # The admin console (9001) is internal-only.
+    ports:
+      - "9000:9000"
+    expose:
+      - "9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: arsenevdaniilold/lms-backend:${BACKEND_TAG:-latest}
+    env_file:
+      - .env.registry
+    # Internal only; the frontend nginx proxies /api, /health and /ws to it.
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    # Production server: no --reload, multiple workers, proxy-headers aware.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
+
+  frontend:
+    image: arsenevdaniilold/lms-frontend:${FRONTEND_TAG:-latest}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:

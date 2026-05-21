@@ -4,6 +4,9 @@
 # Local prod env (keep the .example template tracked)
 .env.prod
 !.env.prod.example
+# Local registry-deploy env (keep the .example template tracked)
+.env.registry
+!.env.registry.example
 
 # Python
 __pycache__/
