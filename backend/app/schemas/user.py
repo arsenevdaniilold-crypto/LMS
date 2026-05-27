@@ -54,3 +54,27 @@ class UserUpdateRequest(BaseModel):
         if len(v) < 2 or len(v) > 100:
             raise ValueError("Username must be 2-100 characters")
         return v
+
+
+def user_to_response(user) -> "UserResponse":
+    """
+    Serialize User model to UserResponse.
+    If avatar_url is a MinIO key (does not start with http), resolve it to a fresh presigned URL.
+    External URLs (http://, https://) are returned as-is.
+    """
+    from app.services.minio_storage import minio_storage  # local import to avoid cycle
+
+    avatar = user.avatar_url
+    if avatar and not avatar.startswith("http"):
+        try:
+            avatar = minio_storage.presigned_get_url(avatar)
+        except Exception:
+            avatar = None
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        avatar_url=avatar,
+        is_admin=user.is_admin,
+        created_at=user.created_at,
+    )

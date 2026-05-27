@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.schemas.user import RegisterRequest, LoginRequest, UserResponse
+from app.schemas.user import RegisterRequest, LoginRequest, UserResponse, user_to_response
 from app.services import auth as auth_service
 from app.limiter import limiter
 from app.config import settings
@@ -41,7 +41,7 @@ async def register(
             detail={"code": "EMAIL_TAKEN", "message": "Email already registered"},
         )
     _set_tokens(response, access_token, refresh_token)
-    return user
+    return user_to_response(user)
 
 
 @router.post("/login", response_model=UserResponse)
@@ -61,7 +61,7 @@ async def login(
             detail={"code": "INVALID_CREDENTIALS", "message": "Invalid email or password"},
         )
     _set_tokens(response, access_token, refresh_token)
-    return user
+    return user_to_response(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
