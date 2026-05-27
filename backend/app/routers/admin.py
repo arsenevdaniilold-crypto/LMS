@@ -1,6 +1,8 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,10 +16,14 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 def _raise(exc: ClassError) -> None:
-    raise HTTPException(
-        status_code=exc.status_code,
-        detail={"code": exc.code, "message": exc.message},
-    )
+    detail: dict = {"code": exc.code, "message": exc.message}
+    if exc.details:
+        detail["details"] = exc.details
+    raise HTTPException(status_code=exc.status_code, detail=detail)
+
+
+class TransferClassRequest(BaseModel):
+    new_creator_id: uuid.UUID
 
 
 @router.get("/users")
@@ -58,6 +64,47 @@ async def unblock_user(
     except ClassError as exc:
         _raise(exc)
     return AdminUserResponse.model_validate(user, from_attributes=True)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hard-delete a user. Returns 409 with `details.classes_owned` if the
+    user still owns content. Use POST /classes/{id}/transfer first."""
+    try:
+        await admin_service.delete_user(db, user_id, admin)
+    except ClassError as exc:
+        _raise(exc)
+
+
+@router.post("/classes/{class_id}/transfer", response_model=AdminClassResponse)
+async def transfer_class(
+    class_id: uuid.UUID,
+    body: TransferClassRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reassign a class to a new creator (must be an active user)."""
+    try:
+        cls = await admin_service.transfer_class(db, class_id, body.new_creator_id)
+    except ClassError as exc:
+        _raise(exc)
+    creator = (
+        await db.execute(select(User).where(User.id == cls.creator_id))
+    ).scalar_one()
+    return AdminClassResponse(
+        id=cls.id,
+        name=cls.name,
+        type=cls.type.value,
+        creator_id=cls.creator_id,
+        creator_username=creator.username,
+        member_count=0,
+        created_at=cls.created_at,
+        deleted_at=cls.deleted_at,
+    )
 
 
 @router.get("/classes")

@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.announcement import AnnouncementFile
+from app.models.announcement import Announcement, AnnouncementFile
+from app.models.assignment import Assignment
 from app.models.class_ import Class, ClassMember
+from app.models.enums import MemberRole
 from app.models.solution import Solution, SolutionFile
 from app.models.user import RefreshToken, User
 from app.services.classes import ClassError
@@ -109,6 +111,114 @@ async def list_classes(
         for c in classes
     ]
     return items, total
+
+
+async def transfer_class(
+    db: AsyncSession,
+    class_id: uuid.UUID,
+    new_creator_id: uuid.UUID,
+) -> Class:
+    """Reassign a class to a different creator.
+
+    The previous creator stays in the class as a teacher (if they were a
+    member); the new creator becomes the teacher_creator. The new creator must
+    be an existing active user.
+    """
+    cls = (await db.execute(select(Class).where(Class.id == class_id))).scalar_one_or_none()
+    if cls is None:
+        raise ClassError("CLASS_NOT_FOUND", "Class not found", 404)
+
+    if cls.creator_id == new_creator_id:
+        raise ClassError("SAME_CREATOR", "Class is already owned by this user", 400)
+
+    new_creator = (
+        await db.execute(select(User).where(User.id == new_creator_id, User.deleted_at.is_(None)))
+    ).scalar_one_or_none()
+    if new_creator is None:
+        raise ClassError("USER_NOT_FOUND", "New creator must be an active user", 404)
+
+    old_creator_id = cls.creator_id
+    cls.creator_id = new_creator_id
+
+    # Downgrade the previous creator's membership to teacher (if they had one).
+    old_membership = (await db.execute(
+        select(ClassMember).where(
+            ClassMember.class_id == class_id,
+            ClassMember.user_id == old_creator_id,
+        )
+    )).scalar_one_or_none()
+    if old_membership is not None and old_membership.role == MemberRole.teacher_creator:
+        old_membership.role = MemberRole.teacher
+
+    # Upsert the new creator's membership as teacher_creator.
+    new_membership = (await db.execute(
+        select(ClassMember).where(
+            ClassMember.class_id == class_id,
+            ClassMember.user_id == new_creator_id,
+        )
+    )).scalar_one_or_none()
+    if new_membership is None:
+        new_membership = ClassMember(
+            class_id=class_id,
+            user_id=new_creator_id,
+            role=MemberRole.teacher_creator,
+        )
+        db.add(new_membership)
+    else:
+        new_membership.role = MemberRole.teacher_creator
+
+    await db.commit()
+    await db.refresh(cls)
+    return cls
+
+
+async def delete_user(db: AsyncSession, user_id: uuid.UUID, admin: User) -> None:
+    """Physically remove a user from the database.
+
+    Refuses if the user owns active content (classes, assignments,
+    announcements, solutions). Admins cannot be deleted via this endpoint, and
+    admins cannot delete themselves.
+    """
+    user = await _get_user_or_404(db, user_id)
+    if user.id == admin.id:
+        raise ClassError("CANNOT_DELETE_SELF", "Admin cannot delete themselves", 400)
+    if user.is_admin:
+        raise ClassError("CANNOT_DELETE_ADMIN", "Admins cannot be deleted; remove admin rights first", 400)
+
+    # Gather conflicting references.
+    owned_classes = list((await db.execute(
+        select(Class.id, Class.name).where(Class.creator_id == user.id, Class.deleted_at.is_(None))
+    )).all())
+    ann_count = int((await db.execute(
+        select(func.count(Announcement.id)).where(Announcement.author_id == user.id)
+    )).scalar() or 0)
+    asn_count = int((await db.execute(
+        select(func.count(Assignment.id)).where(Assignment.author_id == user.id)
+    )).scalar() or 0)
+    sol_count = int((await db.execute(
+        select(func.count(Solution.id)).where(Solution.creator_id == user.id)
+    )).scalar() or 0)
+
+    if owned_classes or ann_count or asn_count or sol_count:
+        raise ClassError(
+            "USER_HAS_CONTENT",
+            "User still owns content. Transfer or delete it first.",
+            409,
+            details={
+                "classes_owned": [
+                    {"id": str(c.id), "name": c.name} for c in owned_classes
+                ],
+                "announcements": ann_count,
+                "assignments": asn_count,
+                "solutions": sol_count,
+            },
+        )
+
+    # Safe to hard-delete: cascades take care of class_members, notifications,
+    # group_members, refresh_tokens.
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    await db.delete(user)
+    await db.commit()
 
 
 async def delete_class(db: AsyncSession, class_id: uuid.UUID) -> None:
