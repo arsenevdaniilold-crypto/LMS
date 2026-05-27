@@ -269,7 +269,7 @@ async def delete_assignment(db: AsyncSession, assignment_id: uuid.UUID, current_
     membership = await classes_service.get_membership(db, assignment.class_id, current_user.id)
     is_teacher = membership is not None and classes_service.is_teacher_role(membership.role)
 
-    if not (is_author or is_teacher):
+    if not (is_author or is_teacher or current_user.is_admin):
         raise ClassError("FORBIDDEN", "Only author or teachers can delete the assignment", 403)
 
     materials_result = await db.execute(

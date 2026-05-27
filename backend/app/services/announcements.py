@@ -208,7 +208,7 @@ async def delete_announcement(db: AsyncSession, announcement_id: uuid.UUID, curr
     membership = await classes_service.get_membership(db, announcement.class_id, current_user.id)
     is_teacher = membership is not None and classes_service.is_teacher_role(membership.role)
 
-    if not (is_author or is_teacher):
+    if not (is_author or is_teacher or current_user.is_admin):
         raise ClassError("FORBIDDEN", "Only author or teachers can delete the announcement", 403)
 
     files_result = await db.execute(
