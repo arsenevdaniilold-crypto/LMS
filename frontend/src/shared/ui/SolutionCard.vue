@@ -110,6 +110,9 @@ import {
   updateSolution,
 } from '@/shared/api/solutions'
 import { extractError } from '@/shared/api/errors'
+import { useToast } from '@/shared/stores/toastStore'
+
+const toast = useToast()
 import type { Assignment, Solution } from '@/shared/api/types'
 import FileInput from './FileInput.vue'
 
@@ -182,7 +185,7 @@ async function onSaveEdit() {
     showEdit.value = false
     editFiles.value = []
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   } finally {
     actionLoading.value = false
   }
@@ -194,7 +197,7 @@ async function onSubmit() {
     const s = await submitSolution(props.solution.id)
     emit('updated', s)
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   } finally {
     actionLoading.value = false
   }
@@ -223,7 +226,7 @@ async function onReturn() {
     const s = await returnSolution(props.solution.id)
     emit('updated', s)
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   } finally {
     actionLoading.value = false
   }

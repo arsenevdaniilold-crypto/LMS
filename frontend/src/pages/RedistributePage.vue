@@ -1,6 +1,10 @@
 <template>
   <div class="container page">
-    <div v-if="loading" class="card muted">Загрузка…</div>
+    <div v-if="loading" class="card sk-card">
+      <span class="sk-line" style="width: 40%"></span>
+      <span class="sk-line" style="width: 80%"></span>
+      <span class="sk-line" style="width: 65%"></span>
+    </div>
     <div v-else-if="!solution || !assignment" class="card muted">Решение не найдено</div>
     <template v-else>
       <RouterLink :to="`/solutions/${solution.id}`" class="muted" style="font-size: 13px">

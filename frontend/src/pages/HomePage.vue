@@ -1,39 +1,81 @@
 <template>
   <div class="container page">
-    <!-- Hero header -->
-    <header class="home-hero reveal">
-      <div class="hero-text">
-        <p class="hero-eyebrow">Рабочее пространство</p>
-        <h1 class="page-title">Мои классы</h1>
-        <p class="hero-sub muted" v-if="!loading">
-          {{ items.length }} {{ pluralClasses(items.length) }} · всё в одном месте
-        </p>
+    <!-- Split title with right-side actions -->
+    <div class="split-title reveal">
+      <div>
+        <div class="title-kicker">Обзор</div>
+        <h1 class="page-title">Добро пожаловать{{ greetName }}</h1>
       </div>
-      <div class="hero-actions">
-        <button class="btn-secondary" :class="{ active: showJoin }" @click="showJoin = !showJoin; showCreate = false">
+      <div class="split-title-right">
+        <button
+          class="btn-ghost"
+          :class="{ active: showJoin }"
+          @click="showJoin = !showJoin; showCreate = false"
+        >
           Вступить по коду
         </button>
-        <button class="btn-primary" :class="{ active: showCreate }" @click="showCreate = !showCreate; showJoin = false">
+        <button
+          class="btn-primary"
+          :class="{ active: showCreate }"
+          @click="showCreate = !showCreate; showJoin = false"
+        >
           + Создать класс
         </button>
       </div>
-    </header>
+    </div>
+    <div class="title-line"></div>
+
+    <!-- Dashboard stats -->
+    <div class="stat-grid reveal" style="animation-delay: 80ms">
+      <div class="stat">
+        <div class="stat-label">Классов</div>
+        <div class="stat-value" style="color: var(--color-primary)">{{ items.length }}</div>
+        <div class="stat-sub">
+          <template v-if="teacherCount > 0 && studentCount > 0">
+            {{ teacherCount }} как преподаватель · {{ studentCount }} как студент
+          </template>
+          <template v-else-if="teacherCount > 0">
+            всё как преподаватель
+          </template>
+          <template v-else-if="studentCount > 0">
+            всё как студент
+          </template>
+          <template v-else>
+            вступайте в открытые классы из каталога
+          </template>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Преподавательских</div>
+        <div class="stat-value" style="color: var(--color-accent-hover)">{{ teacherCount }}</div>
+        <div class="stat-sub">создатель или преподаватель</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Новых уведомлений</div>
+        <div class="stat-value">{{ notifications.unreadCount }}</div>
+        <div class="stat-sub">за последнее время</div>
+      </div>
+    </div>
+
+    <h2 class="section-title" style="margin-top: 10px">Мои классы</h2>
 
     <!-- Join panel -->
     <Transition name="panel">
       <div v-if="showJoin" class="card action-panel">
-        <div class="stack">
-          <div class="form-group" style="margin-bottom: 0">
-            <label>Invite-код</label>
-            <input v-model="joinCode" maxlength="8" placeholder="ABCDEFGH" class="code-input" />
-          </div>
-          <div v-if="joinError" class="error-text">{{ joinError }}</div>
-          <div class="row">
-            <button class="btn-primary" :disabled="joinLoading" @click="onJoin">
-              {{ joinLoading ? 'Вступаем…' : 'Вступить' }}
-            </button>
-            <button class="btn-ghost" @click="showJoin = false">Отмена</button>
-          </div>
+        <div class="card-title">Присоединиться по коду</div>
+        <p class="muted" style="margin-bottom: 14px; font-size: 14px">
+          Для закрытого класса необходимо ввести код доступа из 8 символов.
+        </p>
+        <div class="form-group">
+          <label>Invite-код</label>
+          <input v-model="joinCode" maxlength="8" placeholder="A1B2C3D4" class="code-input" />
+        </div>
+        <div v-if="joinError" class="error-text" style="margin-bottom: 12px">{{ joinError }}</div>
+        <div class="row">
+          <button class="btn-primary" :disabled="joinLoading" @click="onJoin">
+            {{ joinLoading ? 'Вступаем…' : 'Вступить' }}
+          </button>
+          <button class="btn-ghost" @click="showJoin = false">Отмена</button>
         </div>
       </div>
     </Transition>
@@ -41,32 +83,34 @@
     <!-- Create panel -->
     <Transition name="panel">
       <div v-if="showCreate" class="card action-panel">
-        <div class="stack">
-          <div class="form-group" style="margin-bottom: 0">
-            <label>Название</label>
-            <input v-model="createName" placeholder="Например: Математика 10-А" />
-          </div>
-          <div class="form-group" style="margin-bottom: 0">
-            <label>Тип</label>
-            <select v-model="createType">
-              <option value="open">Открытый (виден в каталоге)</option>
-              <option value="closed">Закрытый (только по коду)</option>
-            </select>
-          </div>
-          <div v-if="createError" class="error-text">{{ createError }}</div>
-          <div class="row">
-            <button class="btn-primary" :disabled="createLoading" @click="onCreate">
-              {{ createLoading ? 'Создаём…' : 'Создать' }}
-            </button>
-            <button class="btn-ghost" @click="showCreate = false">Отмена</button>
-          </div>
+        <div class="card-title">Создать класс</div>
+        <p class="muted" style="margin-bottom: 14px; font-size: 14px">
+          Любой пользователь может создать класс и стать преподавателем-создателем.
+        </p>
+        <div class="form-group">
+          <label>Название класса</label>
+          <input v-model="createName" placeholder="Например: ИВТ41" />
+        </div>
+        <div class="form-group">
+          <label>Тип класса</label>
+          <select v-model="createType">
+            <option value="open">Открытый (виден в каталоге)</option>
+            <option value="closed">Закрытый (только по коду)</option>
+          </select>
+        </div>
+        <div v-if="createError" class="error-text" style="margin-bottom: 12px">{{ createError }}</div>
+        <div class="row">
+          <button class="btn-primary" :disabled="createLoading" @click="onCreate">
+            {{ createLoading ? 'Создаём…' : 'Создать' }}
+          </button>
+          <button class="btn-ghost" @click="showCreate = false">Отмена</button>
         </div>
       </div>
     </Transition>
 
-    <!-- Skeleton while loading -->
-    <div v-if="loading" class="classes-grid">
-      <div v-for="n in 3" :key="n" class="class-card skeleton-card" aria-hidden="true">
+    <!-- Skeleton -->
+    <div v-if="loading" class="catalog">
+      <div v-for="n in 3" :key="n" class="card catalog-card skeleton-card" aria-hidden="true">
         <div class="sk sk-line" style="width: 60%"></div>
         <div class="sk sk-line" style="width: 40%; margin-top: 16px"></div>
         <div class="sk sk-line" style="width: 50%; margin-top: 8px"></div>
@@ -80,50 +124,63 @@
       <p class="muted">Создайте свой первый класс или вступите в существующий по коду.</p>
       <div class="row" style="justify-content: center; margin-top: 20px">
         <button class="btn-primary" @click="showCreate = true">+ Создать класс</button>
-        <button class="btn-secondary" @click="showJoin = true">Вступить по коду</button>
+        <button class="btn-ghost" @click="showJoin = true">Вступить по коду</button>
       </div>
     </div>
 
     <!-- Class grid -->
-    <div v-else class="classes-grid">
+    <div v-else class="catalog">
       <RouterLink
         v-for="(cls, i) in items"
         :key="cls.id"
         :to="`/classes/${cls.id}`"
-        class="class-card reveal"
+        class="card catalog-card reveal"
         :style="{ animationDelay: 60 + i * 55 + 'ms' }"
       >
-        <span class="card-accent" :class="cls.type === 'open' ? 'accent-open' : 'accent-closed'"></span>
-        <div class="row-between card-top">
-          <h3>{{ cls.name }}</h3>
-          <span class="tag" :class="cls.type === 'open' ? 'tag-info' : 'tag-warning'">
+        <div class="badges">
+          <span class="badge" :class="cls.type === 'open' ? 'badge-open' : 'badge-closed'">
             {{ cls.type === 'open' ? 'открытый' : 'закрытый' }}
           </span>
+          <span v-if="cls.my_role" class="badge" :class="roleBadgeClass(cls.my_role)">
+            {{ roleLabel(cls.my_role) }}
+          </span>
         </div>
-        <div class="card-meta">
-          <span class="meta-avatar">{{ (cls.creator?.username || '—').charAt(0).toUpperCase() }}</span>
-          <span class="muted">{{ cls.creator?.username || '—' }}</span>
+        <div class="catalog-name">{{ cls.name }}</div>
+        <div class="catalog-meta">
+          {{ cls.member_count }} {{ pluralMembers(cls.member_count) }} ·
+          создал {{ cls.creator?.username || '—' }}
         </div>
-        <div class="card-foot">
-          <span class="member-count">{{ cls.member_count }}</span>
-          <span class="muted">{{ pluralMembers(cls.member_count) }}</span>
-          <span class="card-arrow" aria-hidden="true">→</span>
-        </div>
+        <div class="card-arrow" aria-hidden="true">→</div>
       </RouterLink>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listMyClasses, createClass, joinByCode } from '@/shared/api/classes'
-import type { ClassResponse, ClassType } from '@/shared/api/types'
+import type { ClassResponse, ClassType, MemberRole } from '@/shared/api/types'
 import { extractError } from '@/shared/api/errors'
+import { useAuthStore } from '@/shared/stores/authStore'
+import { useNotificationStore } from '@/shared/stores/notificationStore'
 
 const router = useRouter()
+const auth = useAuthStore()
+const notifications = useNotificationStore()
 const items = ref<ClassResponse[]>([])
 const loading = ref(false)
+
+const greetName = computed(() => {
+  const name = auth.user?.username?.trim()
+  return name ? `, ${name}` : ''
+})
+const teacherCount = computed(() =>
+  items.value.filter((c) => c.my_role === 'teacher_creator' || c.my_role === 'teacher').length,
+)
+const studentCount = computed(() =>
+  items.value.filter((c) => c.my_role === 'student').length,
+)
 
 const showJoin = ref(false)
 const joinCode = ref('')
@@ -136,20 +193,23 @@ const createType = ref<ClassType>('open')
 const createError = ref('')
 const createLoading = ref(false)
 
-function pluralClasses(n: number): string {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'класс'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'класса'
-  return 'классов'
-}
-
 function pluralMembers(n: number): string {
   const mod10 = n % 10
   const mod100 = n % 100
   if (mod10 === 1 && mod100 !== 11) return 'участник'
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'участника'
   return 'участников'
+}
+
+function roleLabel(role: MemberRole): string {
+  if (role === 'teacher_creator') return 'создатель'
+  if (role === 'teacher') return 'преподаватель'
+  return 'студент'
+}
+function roleBadgeClass(role: MemberRole): string {
+  if (role === 'teacher_creator') return 'badge-creator'
+  if (role === 'teacher') return 'badge-teacher'
+  return 'badge-student'
 }
 
 async function load() {
@@ -204,136 +264,82 @@ onMounted(load)
 </script>
 
 <style scoped>
-/* ---------- Hero ---------- */
-.home-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 20px;
-  margin-bottom: 32px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--color-border);
+.hero-sub {
+  font-size: 15px;
+  margin-top: -16px;
+  margin-bottom: 24px;
 }
-.hero-eyebrow {
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-  margin-bottom: 8px;
-}
-.hero-sub { font-size: 14.5px; margin-top: 8px; }
-.hero-actions { display: flex; gap: 12px; flex-shrink: 0; }
-.hero-actions .btn-primary.active,
-.hero-actions .btn-secondary.active { box-shadow: 0 0 0 3px var(--color-primary-ring); }
+
+.split-title-right button.active { box-shadow: 0 0 0 3px var(--color-primary-ring); }
 
 /* ---------- Action panels ---------- */
-.action-panel { margin-bottom: 24px; box-shadow: var(--shadow); }
+.action-panel { margin-bottom: 24px; }
+.card-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
 .code-input {
   font-family: var(--font-display);
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  font-size: 17px;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
 }
 .panel-enter-active { transition: all var(--dur) var(--ease-out); }
 .panel-leave-active { transition: all var(--dur-fast) var(--ease-out); }
 .panel-enter-from,
 .panel-leave-to { opacity: 0; transform: translateY(-8px); }
 
-/* ---------- Class grid ---------- */
-.classes-grid {
+/* ---------- Catalog grid ---------- */
+.catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
 }
-.class-card {
+.catalog-card {
   position: relative;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--color-text);
+  padding: 24px;
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
   overflow: hidden;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 22px 22px 18px;
-  color: var(--color-text);
-  text-decoration: none;
-  box-shadow: var(--shadow-sm);
-  transition:
-    transform var(--dur) var(--ease-out),
-    box-shadow var(--dur) var(--ease-out),
-    border-color var(--dur) var(--ease-out);
 }
-.class-card:hover {
-  transform: translateY(-4px);
+.catalog-card:hover {
+  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--color-border-strong);
   text-decoration: none;
 }
-/* accent rail along the top edge */
-.card-accent {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform var(--dur-slow) var(--ease-out);
+.catalog-name {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 12px 0 10px;
+  line-height: 1.15;
 }
-.accent-open { background: linear-gradient(90deg, var(--color-primary), #3f8e72); }
-.accent-closed { background: linear-gradient(90deg, var(--color-warning), #c79143); }
-.class-card:hover .card-accent { transform: scaleX(1); }
+.catalog-meta {
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
 
-.card-top { align-items: flex-start; margin-bottom: 16px; }
-.class-card h3 {
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 13.5px;
-  margin-bottom: 18px;
-}
-.meta-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.card-foot {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border);
-  font-size: 13.5px;
-}
-.member-count {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text);
-}
 .card-arrow {
-  margin-left: auto;
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
   color: var(--color-primary);
-  font-size: 16px;
+  font-size: 22px;
   transition: transform var(--dur) var(--ease-spring);
 }
-.class-card:hover .card-arrow { transform: translateX(5px); }
+.catalog-card:hover .card-arrow { transform: translateX(6px); }
 
 /* ---------- Skeleton ---------- */
 .skeleton-card { pointer-events: none; }
-.sk { border-radius: 6px; background: var(--color-surface-sunken); }
-.sk-line { height: 14px; }
-.skeleton-card .sk { animation: sk-pulse 1.4s ease-in-out infinite; }
+.sk { border-radius: 6px; background: var(--color-bg-2); height: 14px; animation: sk-pulse 1.4s ease-in-out infinite; }
 @keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 /* ---------- Empty state ---------- */
@@ -353,11 +359,12 @@ onMounted(load)
   font-family: var(--font-display);
   font-size: 22px;
   margin-bottom: 8px;
+  font-weight: 800;
 }
 
 @media (max-width: 640px) {
-  .home-hero { flex-direction: column; align-items: stretch; }
-  .hero-actions { flex-wrap: wrap; }
-  .hero-actions button { flex: 1; }
+  .split-title { flex-direction: column; align-items: stretch; }
+  .split-title-right { flex-wrap: wrap; }
+  .split-title-right button { flex: 1; }
 }
 </style>

@@ -1,14 +1,18 @@
 <template>
-  <div class="card">
-    <h3 class="section-title">Новое объявление</h3>
+  <div class="card create-form">
+    <div class="form-head">
+      <span class="badge badge-ann">объявление</span>
+      <h3 class="form-title">Новое объявление</h3>
+      <p class="muted form-sub">Опубликуйте сообщение для всех студентов и преподавателей класса.</p>
+    </div>
     <div class="stack">
       <div class="form-group" style="margin-bottom: 0">
-        <label>Заголовок</label>
-        <input v-model="title" placeholder="Тема объявления" />
+        <label>Заголовок объявления</label>
+        <input v-model="title" placeholder="Например: перенос занятия" />
       </div>
       <div class="form-group" style="margin-bottom: 0">
-        <label>Текст</label>
-        <textarea v-model="text" rows="4" placeholder="Содержимое" />
+        <label>Текст объявления</label>
+        <textarea v-model="text" rows="5" placeholder="Текст объявления для студентов" />
       </div>
       <FileInput v-model="files" multiple />
       <div v-if="error" class="error-text">{{ error }}</div>
@@ -16,7 +20,7 @@
         <button class="btn-primary" :disabled="loading" @click="submit">
           {{ loading ? 'Публикуем…' : 'Опубликовать' }}
         </button>
-        <button class="btn-secondary" @click="$emit('cancel')">Отмена</button>
+        <button class="btn-ghost" @click="$emit('cancel')">Отмена</button>
       </div>
     </div>
   </div>
@@ -65,3 +69,15 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.form-head { margin-bottom: 18px; }
+.form-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 10px;
+}
+.form-sub { font-size: 14px; max-width: 60ch; margin-top: 4px; }
+</style>

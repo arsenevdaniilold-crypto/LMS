@@ -1,55 +1,62 @@
 <template>
-  <div class="card feed-item">
-    <div class="row-between">
-      <div class="row" style="gap: 8px">
-        <span class="tag" :class="item.kind === 'announcement' ? 'tag-info' : 'tag-success'">
-          {{ item.kind === 'announcement' ? 'Объявление' : 'Задание' }}
+  <div class="card feed-item" :class="kindClass">
+    <span class="feed-stripe" aria-hidden="true"></span>
+    <div class="feed-head">
+      <div class="badges">
+        <span class="badge" :class="item.kind === 'announcement' ? 'badge-ann' : 'badge-task'">
+          {{ item.kind === 'announcement' ? 'объявление' : 'задание' }}
         </span>
-        <span v-if="item.kind === 'assignment' && deadline" class="tag" :class="deadlineTag">
-          до {{ formatDate(deadline) }}
+        <span
+          v-if="item.kind === 'assignment' && deadlineInfo"
+          class="deadline-chip"
+          :class="`deadline-${deadlineInfo.severity}`"
+        >
+          <span class="deadline-dot" aria-hidden="true"></span>
+          {{ deadlineInfo.label }}
         </span>
       </div>
-      <span class="muted" style="font-size: 12px">
-        {{ author.username }} · {{ formatDate(item.created_at) }}
+      <span class="meta">
+        {{ author.username }} · {{ formatDateTime(item.created_at) }}
       </span>
     </div>
 
     <!-- ===== View mode ===== -->
     <template v-if="!editing">
-      <h3 style="margin-top: 8px; font-size: 16px">
+      <h3 class="feed-title">
         <RouterLink v-if="item.kind === 'assignment'" :to="`/assignments/${item.id}`">
           {{ assignment.name }}
         </RouterLink>
         <span v-else>{{ announcement.title }}</span>
       </h3>
 
-      <p v-if="item.kind === 'announcement'" style="margin-top: 8px; white-space: pre-wrap">
-        {{ announcement.text }}
-      </p>
-      <p
-        v-else-if="assignment.description"
-        style="margin-top: 8px; white-space: pre-wrap; color: var(--color-text-muted)"
-      >{{ assignment.description }}</p>
+      <p v-if="item.kind === 'announcement'" class="feed-text">{{ announcement.text }}</p>
+      <p v-else-if="assignment.description" class="feed-text muted">{{ assignment.description }}</p>
 
-      <div v-if="item.kind === 'announcement' && announcement.files.length > 0" class="files">
-        <a v-for="f in announcement.files" :key="f.id" :href="f.download_url" target="_blank">
+      <div v-if="item.kind === 'announcement' && announcement.files.length > 0" class="chips">
+        <a v-for="f in announcement.files" :key="f.id" :href="f.download_url" target="_blank" class="file-chip">
           📎 {{ f.file_name }}
         </a>
       </div>
-      <div v-else-if="item.kind === 'assignment' && assignment.materials.length > 0" class="files">
+      <div v-else-if="item.kind === 'assignment' && assignment.materials.length > 0" class="chips">
         <a
           v-for="m in assignment.materials"
           :key="m.id"
           :href="m.material_type === 'file' ? (m.download_url || '#') : (m.url || '#')"
           target="_blank"
+          class="file-chip"
         >
           {{ m.material_type === 'file' ? '📎' : '🔗' }} {{ m.file_name || m.url }}
         </a>
       </div>
 
-      <div v-if="isTeacher" class="row feed-actions">
-        <button class="btn-ghost feed-btn" @click="startEdit">Редактировать</button>
-        <button class="btn-ghost feed-btn feed-btn-danger" @click="onDelete">Удалить</button>
+      <div v-if="isTeacher || canDelete" class="feed-actions">
+        <RouterLink
+          v-if="item.kind === 'assignment'"
+          :to="`/assignments/${item.id}`"
+          class="btn-ghost feed-btn"
+        >Открыть задание</RouterLink>
+        <button v-if="isTeacher" class="btn-ghost feed-btn" @click="startEdit">Редактировать</button>
+        <button class="btn-soft feed-btn" @click="onDelete">Удалить</button>
       </div>
     </template>
 
@@ -98,6 +105,10 @@ import type { Announcement, Assignment } from '@/shared/api/types'
 import { deleteAnnouncement, updateAnnouncement } from '@/shared/api/announcements'
 import { deleteAssignment, updateAssignment } from '@/shared/api/assignments'
 import { extractError } from '@/shared/api/errors'
+import { useToast } from '@/shared/stores/toastStore'
+import { describeDeadline, formatDateTime } from '@/shared/lib/dates'
+
+const toast = useToast()
 
 interface FeedEntry {
   kind: 'announcement' | 'assignment'
@@ -106,7 +117,10 @@ interface FeedEntry {
   data: Announcement | Assignment
 }
 
-const props = defineProps<{ item: FeedEntry; isTeacher: boolean }>()
+const props = withDefaults(
+  defineProps<{ item: FeedEntry; isTeacher: boolean; canDelete?: boolean }>(),
+  { canDelete: false },
+)
 const emit = defineEmits<{
   (e: 'deleted', kind: 'announcement' | 'assignment', id: string): void
   (e: 'updated', kind: 'announcement' | 'assignment', data: Announcement | Assignment): void
@@ -120,19 +134,10 @@ const author = computed(() =>
 const deadline = computed(() =>
   props.item.kind === 'assignment' ? assignment.value.deadline : null,
 )
-const deadlineTag = computed(() => {
-  if (!deadline.value) return ''
-  return new Date(deadline.value) < new Date() ? 'tag-danger' : 'tag-warning'
-})
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const deadlineInfo = computed(() => describeDeadline(deadline.value))
+const kindClass = computed(() =>
+  props.item.kind === 'assignment' ? 'feed-item-task' : 'feed-item-ann',
+)
 
 // ----- Edit state -----
 const editing = ref(false)
@@ -205,46 +210,105 @@ async function onDelete() {
     }
     emit('deleted', props.item.kind, props.item.id)
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 </script>
 
 <style scoped>
 .feed-item {
-  transition: box-shadow var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+  position: relative;
+  padding-left: 30px;
+  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+  overflow: hidden;
 }
-.feed-item:hover { box-shadow: var(--shadow); }
-.feed-item h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
+.feed-item:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+.feed-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: var(--color-border);
 }
-.feed-item h3 a { color: var(--color-text); }
-.feed-item h3 a:hover { color: var(--color-primary); }
-.files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
+.feed-item-task .feed-stripe {
+  background: linear-gradient(180deg, var(--color-primary), #3f8e72);
 }
-.files a {
-  font-size: 13px;
-  padding: 5px 11px;
-  background: var(--color-surface-sunken);
+.feed-item-ann .feed-stripe {
+  background: linear-gradient(180deg, #5e6bd6, #3e4ab9);
+}
+
+.deadline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
   border-radius: var(--radius-pill);
-  transition: background var(--dur-fast) var(--ease-out);
+  font-size: 12.5px;
+  font-weight: 800;
+  background: var(--color-bg-2);
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
 }
-.files a:hover { background: var(--color-primary-soft); text-decoration: none; }
+.deadline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.deadline-safe    { background: var(--color-success-soft); color: var(--color-success); }
+.deadline-soon    { background: var(--color-warning-soft); color: var(--color-warning); }
+.deadline-today   { background: var(--color-accent-soft);  color: var(--color-warning); animation: deadline-pulse 1.8s ease-in-out infinite; }
+.deadline-overdue { background: var(--color-danger-soft);  color: var(--color-danger); }
+
+@keyframes deadline-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(138, 79, 0, 0.35); }
+  50%      { box-shadow: 0 0 0 6px rgba(138, 79, 0, 0); }
+}
+
+.feed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.meta { font-size: 13px; color: var(--color-text-muted); }
+
+.feed-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 4px 0 10px;
+}
+.feed-title a { color: var(--color-text); }
+.feed-title a:hover { color: var(--color-primary); text-decoration: none; }
+
+.feed-text {
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-width: 72ch;
+}
 
 .feed-actions {
-  margin-top: 14px;
-  padding-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid var(--color-border);
-  gap: 8px;
+  gap: 10px;
 }
-.feed-btn { font-size: 13px; padding: 6px 12px; }
-.feed-btn-danger { color: var(--color-danger); }
-.feed-btn-danger:hover { background: var(--color-danger-soft); color: var(--color-danger); }
+.feed-btn { font-size: 13px; padding: 8px 14px; }
+a.feed-btn { text-decoration: none; }
 
 .edit-form { margin-top: 14px; }
+.file-chip { text-decoration: none; }
+.file-chip:hover { background: var(--color-bg-3); text-decoration: none; }
 </style>

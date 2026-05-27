@@ -1,40 +1,51 @@
 <template>
   <div class="container page">
-    <div v-if="loading" class="card muted">Загрузка…</div>
+    <div v-if="loading" class="card sk-card">
+      <span class="sk-line" style="width: 40%"></span>
+      <span class="sk-line" style="width: 75%"></span>
+      <span class="sk-line" style="width: 60%"></span>
+    </div>
     <div v-else-if="!assignment" class="card muted">Задание не найдено</div>
     <template v-else>
-      <RouterLink :to="`/classes/${assignment.class_id}`" class="muted" style="font-size: 13px">
+      <RouterLink :to="`/classes/${assignment.class_id}`" class="back-link">
         ← К классу
       </RouterLink>
-      <div class="row-between" style="margin-top: 8px; margin-bottom: 16px">
-        <h1 class="page-title" style="margin: 0">{{ assignment.name }}</h1>
-        <div class="row">
-          <span class="tag" :class="assignment.type === 'group' ? 'tag-info' : ''">
-            {{ assignment.type === 'group' ? 'групповое' : 'индивидуальное' }}
-          </span>
-          <span class="tag">шкала {{ assignment.grade_type }}</span>
-          <span
-            v-if="assignment.deadline"
-            class="tag"
-            :class="isOverdue ? 'tag-danger' : 'tag-warning'"
-          >
-            до {{ formatDate(assignment.deadline) }}
-          </span>
+
+      <div class="split-title">
+        <div>
+          <div class="title-kicker">Просмотр задания</div>
+          <h1 class="page-title">{{ assignment.name }}</h1>
+          <div class="badges" style="margin-top: 10px">
+            <span class="badge" :class="assignment.type === 'group' ? 'badge-task' : 'badge-student'">
+              {{ assignment.type === 'group' ? 'групповое' : 'индивидуальное' }}
+            </span>
+            <span class="badge badge-graded">шкала {{ assignment.grade_type }}</span>
+            <span
+              v-if="deadlineInfo"
+              class="deadline-chip"
+              :class="`deadline-${deadlineInfo.severity}`"
+            >
+              <span class="deadline-dot" aria-hidden="true"></span>
+              {{ deadlineInfo.label }}
+            </span>
+          </div>
         </div>
       </div>
+      <div class="title-line"></div>
 
-      <div class="card" v-if="assignment.description" style="margin-bottom: 16px">
-        <p style="white-space: pre-wrap">{{ assignment.description }}</p>
+      <div class="card" v-if="assignment.description" style="margin-bottom: 18px">
+        <p class="assignment-desc">{{ assignment.description }}</p>
       </div>
 
-      <div v-if="assignment.materials.length > 0" class="card" style="margin-bottom: 16px">
+      <div v-if="assignment.materials.length > 0" class="card" style="margin-bottom: 18px">
         <h3 class="section-title">Материалы</h3>
-        <div class="stack" style="gap: 8px">
+        <div class="chips">
           <a
             v-for="m in assignment.materials"
             :key="m.id"
             :href="m.material_type === 'file' ? (m.download_url || '#') : (m.url || '#')"
             target="_blank"
+            class="file-chip"
           >
             {{ m.material_type === 'file' ? '📎' : '🔗' }} {{ m.file_name || m.url }}
           </a>
@@ -42,37 +53,43 @@
       </div>
 
       <!-- Группы для group-assignment -->
-      <div v-if="assignment.type === 'group'" class="card" style="margin-bottom: 16px">
-        <div class="row-between">
+      <div v-if="assignment.type === 'group'" class="card" style="margin-bottom: 18px">
+        <div class="row-between" style="margin-bottom: 14px">
           <h3 class="section-title" style="margin: 0">Группы</h3>
-          <button v-if="!groupsLoading" class="btn-secondary" @click="loadGroups">Обновить</button>
+          <button v-if="!groupsLoading" class="btn-ghost" @click="loadGroups">Обновить</button>
         </div>
         <div v-if="groupsLoading" class="muted">Загрузка…</div>
         <div v-else-if="groups.length === 0" class="muted">Группы ещё не созданы</div>
-        <div v-else class="stack" style="margin-top: 12px">
-          <div v-for="g in groups" :key="g.id" class="group-row">
-            <strong>{{ g.name }}:</strong>
-            <span v-for="(m, idx) in g.members" :key="m.user_id">
-              {{ m.username }}<span v-if="idx < g.members.length - 1">, </span>
-            </span>
+        <div v-else class="catalog">
+          <div v-for="(g, gi) in groups" :key="g.id" class="card group-card">
+            <div class="badges">
+              <span class="badge badge-task">группа {{ gi + 1 }}</span>
+            </div>
+            <div class="group-name">{{ g.name }}</div>
+            <div class="group-members">
+              <span v-for="(m, idx) in g.members" :key="m.user_id">
+                {{ m.username }}<span v-if="idx < g.members.length - 1">, </span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Список решений (teacher) или собственное решение (student) -->
-      <h3 class="section-title" style="margin-top: 24px">
+      <h3 class="section-title" style="margin-top: 26px">
         {{ isTeacher ? 'Решения' : 'Моё решение' }}
       </h3>
-      <div v-if="solutionsLoading" class="card muted">Загрузка…</div>
+      <div v-if="solutionsLoading" class="card sk-card">
+        <span class="sk-line" style="width: 40%"></span>
+        <span class="sk-line" style="width: 75%"></span>
+        <span class="sk-line" style="width: 60%"></span>
+      </div>
       <template v-else>
-        <!-- Студент без решения: форма создания -->
         <SolutionDraftForm
           v-if="!isTeacher && solutions.length === 0"
           :assignment-id="assignment.id"
           @created="onSolutionCreated"
         />
 
-        <!-- Студент с решением: показать карточку -->
         <div v-else-if="!isTeacher && solutions.length > 0" class="stack">
           <SolutionCard
             v-for="s in solutions"
@@ -84,9 +101,10 @@
           />
         </div>
 
-        <!-- Teacher: все решения -->
-        <div v-else-if="isTeacher && solutions.length === 0" class="card muted">
-          Ещё нет решений
+        <div v-else-if="isTeacher && solutions.length === 0" class="empty-state">
+          <div class="empty-glyph">✦</div>
+          <h3 class="empty-title">Ещё нет решений</h3>
+          <p class="muted">Карточки появятся, как только студенты сдадут работу.</p>
         </div>
         <div v-else class="stack">
           <SolutionCard
@@ -113,6 +131,7 @@ import { onNotification } from '@/shared/stores/notificationStore'
 import type { Assignment, Group, Solution } from '@/shared/api/types'
 import SolutionDraftForm from '@/shared/ui/SolutionDraftForm.vue'
 import SolutionCard from '@/shared/ui/SolutionCard.vue'
+import { describeDeadline } from '@/shared/lib/dates'
 
 const route = useRoute()
 const router = useRouter()
@@ -154,19 +173,7 @@ async function reloadAssignment() {
   }
 }
 
-const isOverdue = computed(() =>
-  assignment.value?.deadline ? new Date(assignment.value.deadline) < new Date() : false,
-)
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const deadlineInfo = computed(() => describeDeadline(assignment.value?.deadline ?? null))
 
 async function loadGroups() {
   if (!assignment.value) return
@@ -216,12 +223,67 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.group-row {
-  padding: 10px 14px;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
+.back-link {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  display: inline-block;
+  margin-bottom: 14px;
 }
-.group-row strong { color: var(--color-primary); }
+.assignment-desc {
+  font-size: 17px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.group-card {
+  padding: 18px 20px;
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.group-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.group-name {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 10px 0 6px;
+}
+.group-members {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.empty-glyph { font-size: 28px; color: var(--color-primary); margin-bottom: 10px; }
+.empty-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+
+/* Deadline chip styles (same look as FeedItem) */
+.deadline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 800;
+  background: var(--color-bg-2);
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
+}
+.deadline-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.deadline-safe    { background: var(--color-success-soft); color: var(--color-success); }
+.deadline-soon    { background: var(--color-warning-soft); color: var(--color-warning); }
+.deadline-today   { background: var(--color-accent-soft);  color: var(--color-warning); }
+.deadline-overdue { background: var(--color-danger-soft);  color: var(--color-danger); }
 </style>

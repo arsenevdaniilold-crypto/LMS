@@ -1,54 +1,72 @@
 <template>
   <div class="container page">
-    <header class="catalog-hero reveal">
-      <p class="hero-eyebrow">Каталог</p>
-      <h1 class="page-title">Открытые классы</h1>
-      <p class="hero-sub muted">Найдите класс и вступите в один клик</p>
-    </header>
+    <div class="title-kicker">Присоединение к классам</div>
+    <h1 class="page-title">Каталог классов</h1>
+    <div class="title-line"></div>
 
-    <div class="card filters reveal" style="margin-bottom: 24px; animation-delay: 60ms">
-      <div class="filters-row">
-        <input v-model="search" placeholder="Поиск по названию" @keyup.enter="load" />
-        <input v-model="teacher" placeholder="Преподаватель" @keyup.enter="load" />
-        <select v-model="sort">
-          <option value="created_desc">Сначала новые</option>
-          <option value="created_asc">Сначала старые</option>
-          <option value="name_asc">По имени</option>
-        </select>
-        <button class="btn-primary" @click="load">Найти</button>
-      </div>
+    <!-- Search row -->
+    <div class="search-row reveal">
+      <input
+        v-model="search"
+        class="search-input"
+        placeholder="Поиск по названию класса"
+        @keyup.enter="load"
+      />
+      <input
+        v-model="teacher"
+        class="teacher-input"
+        placeholder="Преподаватель"
+        @keyup.enter="load"
+      />
+      <select v-model="sort" class="sort-input">
+        <option value="created_desc">Сначала новые</option>
+        <option value="created_asc">Сначала старые</option>
+        <option value="name_asc">По имени</option>
+      </select>
+      <button class="btn-primary" @click="load">Найти</button>
     </div>
 
-    <div v-if="loading" class="classes-grid">
-      <div v-for="n in 3" :key="n" class="class-card skeleton-card" aria-hidden="true">
+    <!-- Skeleton -->
+    <div v-if="loading" class="catalog">
+      <div v-for="n in 3" :key="n" class="card catalog-card skeleton-card" aria-hidden="true">
         <div class="sk sk-line" style="width: 60%"></div>
         <div class="sk sk-line" style="width: 45%; margin-top: 16px"></div>
       </div>
     </div>
+
+    <!-- Empty -->
     <div v-else-if="items.length === 0" class="empty-state reveal">
       <div class="empty-glyph">✦</div>
       <h3 class="empty-title">Ничего не найдено</h3>
       <p class="muted">Попробуйте изменить запрос или фильтры.</p>
     </div>
-    <div v-else class="classes-grid">
+
+    <!-- Catalog grid -->
+    <div v-else class="catalog">
       <div
         v-for="(cls, i) in items"
         :key="cls.id"
-        class="class-card reveal"
+        class="card catalog-card reveal"
         :style="{ animationDelay: 60 + i * 50 + 'ms' }"
       >
-        <span class="card-accent"></span>
-        <RouterLink :to="`/classes/${cls.id}`" class="class-card-link">
-          <h3>{{ cls.name }}</h3>
-          <div class="card-meta">
-            <span class="meta-avatar">{{ (cls.creator?.username || '—').charAt(0).toUpperCase() }}</span>
-            <span class="muted">{{ cls.creator?.username || '—' }}</span>
+        <RouterLink :to="`/classes/${cls.id}`" class="catalog-link">
+          <div class="badges">
+            <span class="badge badge-open">открытый</span>
+          </div>
+          <div class="catalog-name">{{ cls.name }}</div>
+          <div class="catalog-meta">
+            создал {{ cls.creator?.username || '—' }} ·
+            {{ cls.member_count }} {{ pluralMembers(cls.member_count) }}
           </div>
         </RouterLink>
-        <div class="class-card-foot">
-          <span class="foot-count"><span class="member-count">{{ cls.member_count }}</span> уч.</span>
-          <RouterLink v-if="cls.my_role" :to="`/classes/${cls.id}`" class="tag tag-success">
-            Уже в классе
+
+        <div class="catalog-foot">
+          <RouterLink
+            v-if="cls.my_role"
+            :to="`/classes/${cls.id}`"
+            class="badge badge-active"
+          >
+            уже в классе
           </RouterLink>
           <button
             v-else
@@ -62,7 +80,7 @@
       </div>
     </div>
 
-    <div v-if="errorMsg" class="error-text" style="margin-top: 12px">{{ errorMsg }}</div>
+    <div v-if="errorMsg" class="error-text" style="margin-top: 14px">{{ errorMsg }}</div>
   </div>
 </template>
 
@@ -81,6 +99,14 @@ const items = ref<ClassResponse[]>([])
 const loading = ref(false)
 const joining = ref<string | null>(null)
 const errorMsg = ref('')
+
+function pluralMembers(n: number): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'участник'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'участника'
+  return 'участников'
+}
 
 async function load() {
   loading.value = true
@@ -115,119 +141,80 @@ onMounted(load)
 </script>
 
 <style scoped>
-.catalog-hero {
-  margin-bottom: 28px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-border);
-}
-.hero-eyebrow {
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-  margin-bottom: 8px;
-}
-.hero-sub { font-size: 14.5px; margin-top: 8px; }
-
-.filters-row {
+.search-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
+  grid-template-columns: 2fr 1.2fr 1fr auto;
   gap: 12px;
+  margin-bottom: 28px;
 }
-@media (max-width: 768px) {
-  .filters-row { grid-template-columns: 1fr; }
+.search-input,
+.teacher-input,
+.sort-input {
+  width: 100%;
 }
 
-.classes-grid {
+/* ---------- Catalog ---------- */
+.catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
 }
-.class-card {
-  position: relative;
-  overflow: hidden;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 22px;
+.catalog-card {
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
-.class-card:hover {
-  transform: translateY(-4px);
+.catalog-card:hover {
+  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--color-border-strong);
 }
-.card-accent {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), #3f8e72);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform var(--dur-slow) var(--ease-out);
+.catalog-link {
+  color: var(--color-text);
+  text-decoration: none;
+  display: block;
 }
-.class-card:hover .card-accent { transform: scaleX(1); }
+.catalog-link:hover { text-decoration: none; }
 
-.class-card-link { color: var(--color-text); text-decoration: none; }
-.class-card-link:hover { text-decoration: none; }
-.class-card h3 {
+.catalog-name {
   font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 12px 0 10px;
 }
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 13.5px;
-  margin-top: 14px;
+.catalog-meta {
+  font-size: 15px;
+  color: var(--color-text-muted);
 }
-.meta-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.class-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+
+.catalog-foot {
   padding-top: 14px;
   border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
 }
-.foot-count { font-size: 13.5px; color: var(--color-text-muted); }
-.member-count {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-.join-btn { font-size: 13px; padding: 7px 16px; }
+.join-btn { font-size: 14px; padding: 10px 18px; }
+.badge-active { padding: 7px 14px; }
 
-/* skeleton + empty (shared language) */
+/* ---------- Skeleton / empty ---------- */
 .skeleton-card { pointer-events: none; }
-.sk { border-radius: 6px; background: var(--color-surface-sunken); height: 14px; animation: sk-pulse 1.4s ease-in-out infinite; }
+.sk { border-radius: 6px; background: var(--color-bg-2); height: 14px; animation: sk-pulse 1.4s ease-in-out infinite; }
 @keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
 .empty-state {
   text-align: center;
-  padding: 64px 24px;
+  padding: 72px 24px;
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
-.empty-glyph { font-size: 32px; color: var(--color-primary); margin-bottom: 14px; }
-.empty-title { font-family: var(--font-display); font-size: 22px; margin-bottom: 8px; }
+.empty-glyph { font-size: 32px; color: var(--color-primary); margin-bottom: 16px; }
+.empty-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+
+@media (max-width: 768px) {
+  .search-row { grid-template-columns: 1fr; }
+}
 </style>

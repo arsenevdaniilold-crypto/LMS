@@ -1,69 +1,81 @@
 <template>
   <div class="container page">
-    <header class="admin-hero">
-      <p class="hero-eyebrow">Управление</p>
-      <h1 class="page-title">Администрирование</h1>
-    </header>
+    <div class="title-kicker">Администрирование</div>
+    <h1 class="page-title">Управление платформой</h1>
+    <div class="title-line"></div>
 
-    <div class="tabs">
+    <div class="tabbar">
       <button
         v-for="t in tabs"
         :key="t.id"
         class="tab"
-        :class="{ active: tab === t.id }"
+        :class="{ on: tab === t.id }"
         @click="tab = t.id"
       >{{ t.label }}</button>
     </div>
 
     <!-- USERS -->
     <div v-if="tab === 'users'">
-      <div class="card" style="margin-bottom: 12px">
-        <div class="row">
-          <input v-model="userSearch" placeholder="Поиск (email или username)" @keyup.enter="loadUsers" />
-          <label class="row" style="gap: 6px; font-size: 13px">
-            <input type="checkbox" v-model="includeDeletedUsers" style="width: auto" @change="loadUsers" />
-            Включая заблокированных
-          </label>
-          <button class="btn-primary" @click="loadUsers">Найти</button>
-        </div>
+      <div class="card filter-card">
+        <input
+          v-model="userSearch"
+          class="filter-search"
+          placeholder="Поиск по email или username"
+          @keyup.enter="loadUsers"
+        />
+        <label class="check">
+          <input type="checkbox" v-model="includeDeletedUsers" @change="loadUsers" />
+          включая заблокированных
+        </label>
+        <button class="btn-primary" @click="loadUsers">Найти</button>
       </div>
-      <div v-if="usersLoading" class="card muted">Загрузка…</div>
-      <div v-else class="card" style="padding: 0">
-        <table class="data-table">
+
+      <div v-if="usersLoading" class="card sk-card">
+        <span class="sk-line" style="width: 70%"></span>
+        <span class="sk-line" style="width: 70%"></span>
+        <span class="sk-line" style="width: 70%"></span>
+      </div>
+      <div v-else class="table-wrap">
+        <table class="cf-table">
           <thead>
             <tr>
-              <th>Имя</th>
+              <th>Пользователь</th>
               <th>Email</th>
               <th>Статус</th>
               <th>Создан</th>
-              <th></th>
+              <th>Действие</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
-              <td>
-                <strong>{{ u.username }}</strong>
-                <span v-if="u.is_admin" class="tag tag-info" style="margin-left: 6px">admin</span>
+              <td class="td-strong">
+                {{ u.username }}
+                <span v-if="u.is_admin" class="badge badge-admin" style="margin-left: 6px">admin</span>
               </td>
               <td>{{ u.email }}</td>
               <td>
-                <span v-if="u.deleted_at" class="tag tag-danger">заблокирован</span>
-                <span v-else class="tag tag-success">активен</span>
+                <span v-if="u.deleted_at" class="badge badge-block">заблокирован</span>
+                <span v-else class="badge badge-active">активен</span>
               </td>
               <td>{{ formatDate(u.created_at) }}</td>
               <td>
-                <button
-                  v-if="!u.deleted_at"
-                  class="btn-secondary"
-                  style="font-size: 12px; padding: 4px 8px"
-                  @click="onBlock(u)"
-                >Заблокировать</button>
-                <button
-                  v-else
-                  class="btn-secondary"
-                  style="font-size: 12px; padding: 4px 8px"
-                  @click="onUnblock(u)"
-                >Разблокировать</button>
+                <div class="row-actions">
+                  <button
+                    v-if="!u.deleted_at"
+                    class="btn-soft action-btn"
+                    @click="onBlock(u)"
+                  >Заблокировать</button>
+                  <button
+                    v-else
+                    class="btn-primary action-btn"
+                    @click="onUnblock(u)"
+                  >Разблокировать</button>
+                  <button
+                    v-if="canDelete(u)"
+                    class="btn-danger action-btn"
+                    @click="onDeleteUser(u)"
+                  >Удалить</button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -73,19 +85,26 @@
 
     <!-- CLASSES -->
     <div v-else-if="tab === 'classes'">
-      <div class="card" style="margin-bottom: 12px">
-        <div class="row">
-          <input v-model="classSearch" placeholder="Поиск по названию" @keyup.enter="loadClasses" />
-          <label class="row" style="gap: 6px; font-size: 13px">
-            <input type="checkbox" v-model="includeDeletedClasses" style="width: auto" @change="loadClasses" />
-            Включая удалённые
-          </label>
-          <button class="btn-primary" @click="loadClasses">Найти</button>
-        </div>
+      <div class="card filter-card">
+        <input
+          v-model="classSearch"
+          class="filter-search"
+          placeholder="Поиск по названию класса"
+          @keyup.enter="loadClasses"
+        />
+        <label class="check">
+          <input type="checkbox" v-model="includeDeletedClasses" @change="loadClasses" />
+          включая удалённые
+        </label>
+        <button class="btn-primary" @click="loadClasses">Найти</button>
       </div>
-      <div v-if="classesLoading" class="card muted">Загрузка…</div>
-      <div v-else class="card" style="padding: 0">
-        <table class="data-table">
+
+      <div v-if="classesLoading" class="card sk-card">
+        <span class="sk-line" style="width: 70%"></span>
+        <span class="sk-line" style="width: 70%"></span>
+      </div>
+      <div v-else class="table-wrap">
+        <table class="cf-table">
           <thead>
             <tr>
               <th>Название</th>
@@ -93,26 +112,31 @@
               <th>Создатель</th>
               <th>Участников</th>
               <th>Статус</th>
-              <th></th>
+              <th>Действие</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="c in classes" :key="c.id">
-              <td>{{ c.name }}</td>
-              <td>{{ c.type }}</td>
+              <td class="td-strong">{{ c.name }}</td>
+              <td>
+                <span class="badge" :class="c.type === 'open' ? 'badge-open' : 'badge-closed'">
+                  {{ c.type === 'open' ? 'открытый' : 'закрытый' }}
+                </span>
+              </td>
               <td>{{ c.creator_username }}</td>
               <td>{{ c.member_count }}</td>
               <td>
-                <span v-if="c.deleted_at" class="tag tag-danger">удалён</span>
-                <span v-else class="tag tag-success">активен</span>
+                <span v-if="c.deleted_at" class="badge badge-block">удалён</span>
+                <span v-else class="badge badge-active">активен</span>
               </td>
               <td>
                 <button
                   v-if="!c.deleted_at"
-                  class="btn-danger"
-                  style="font-size: 12px; padding: 4px 8px"
+                  class="btn-soft"
+                  style="font-size: 13px; padding: 7px 14px"
                   @click="onDeleteClass(c)"
                 >Удалить</button>
+                <span v-else class="muted">—</span>
               </td>
             </tr>
           </tbody>
@@ -122,36 +146,154 @@
 
     <!-- STATS -->
     <div v-else-if="tab === 'stats'">
-      <div v-if="statsLoading" class="card muted">Загрузка…</div>
-      <div v-else-if="stats" class="stats-grid">
-        <div class="card stat-card">
+      <div v-if="statsLoading" class="card sk-card">
+        <span class="sk-line" style="width: 70%"></span>
+        <span class="sk-line" style="width: 70%"></span>
+      </div>
+      <div v-else-if="stats" class="stat-grid stat-grid-4">
+        <div class="stat">
           <div class="stat-label">Пользователи</div>
-          <div class="stat-value">{{ stats.users_active }}</div>
-          <div class="muted" style="font-size: 12px">всего {{ stats.users_total }}</div>
+          <div class="stat-value" style="color: var(--color-primary)">{{ stats.users_active }}</div>
+          <div class="stat-sub">всего {{ stats.users_total }}</div>
         </div>
-        <div class="card stat-card">
+        <div class="stat">
           <div class="stat-label">Классы</div>
-          <div class="stat-value">{{ stats.classes_active }}</div>
-          <div class="muted" style="font-size: 12px">всего {{ stats.classes_total }}</div>
+          <div class="stat-value" style="color: var(--color-accent-hover)">{{ stats.classes_active }}</div>
+          <div class="stat-sub">всего {{ stats.classes_total }}</div>
         </div>
-        <div class="card stat-card">
+        <div class="stat">
           <div class="stat-label">Решения</div>
           <div class="stat-value">{{ stats.solutions_total }}</div>
+          <div class="stat-sub">отправлено за всё время</div>
         </div>
-        <div class="card stat-card">
+        <div class="stat">
           <div class="stat-label">Файлы</div>
           <div class="stat-value">{{ formatBytes(stats.file_bytes) }}</div>
+          <div class="stat-sub">занято в хранилище</div>
         </div>
       </div>
     </div>
+
+    <!-- Transfer-classes modal: triggered when DELETE returns 409 USER_HAS_CONTENT -->
+    <Teleport to="body">
+      <div v-if="transferModal" class="overlay" @click.self="closeTransferModal">
+        <div class="modal">
+          <div class="modal-title">Передать классы и удалить</div>
+          <p class="modal-sub">
+            У пользователя <strong>{{ transferModal.user.username }}</strong>
+            ещё есть {{ transferModal.classes.length }} {{ pluralClasses(transferModal.classes.length) }} как создатель.
+            Передайте каждый другому пользователю — после этого аккаунт будет удалён.
+          </p>
+
+          <div v-if="transferModal.extra" class="extra-warning">
+            Также числится контента: {{ transferModal.extra }}. Сначала удалите его вручную, иначе аккаунт не получится удалить.
+          </div>
+
+          <div class="transfer-list">
+            <div
+              v-for="cls in transferModal.classes"
+              :key="cls.id"
+              class="transfer-row"
+              :class="{ 'will-delete': transferModal.choices[cls.id] === DELETE_CHOICE }"
+            >
+              <div class="transfer-class-name">{{ cls.name }}</div>
+              <select v-model="transferModal.choices[cls.id]" class="transfer-select">
+                <option value="">— выберите действие —</option>
+                <optgroup label="Передать преподавателю">
+                  <option
+                    v-for="u in transferCandidates"
+                    :key="u.id"
+                    :value="u.id"
+                  >{{ u.username }} ({{ u.email }})</option>
+                </optgroup>
+                <option :value="DELETE_CHOICE">🗑  Удалить класс</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 20px; justify-content: flex-end; gap: 10px">
+            <button class="btn-ghost" :disabled="transferBusy" @click="closeTransferModal">Отмена</button>
+            <button
+              class="btn-danger"
+              :disabled="!canConfirmTransfer || transferBusy"
+              @click="onConfirmTransferAndDelete"
+            >
+              {{ transferBusy ? 'Выполняем…' : confirmLabel }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { AxiosError } from 'axios'
 import * as adminApi from '@/shared/api/admin'
 import type { AdminClass, AdminStats, AdminUser } from '@/shared/api/types'
 import { extractError } from '@/shared/api/errors'
+import { useToast } from '@/shared/stores/toastStore'
+import { useAuthStore } from '@/shared/stores/authStore'
+
+const toast = useToast()
+const auth = useAuthStore()
+
+/** Sentinel value in the per-class dropdown meaning "delete this class
+ *  instead of transferring it". */
+const DELETE_CHOICE = '__delete__'
+
+interface TransferModalState {
+  user: AdminUser
+  classes: { id: string; name: string }[]
+  choices: Record<string, string>  // class_id -> new_creator_id OR DELETE_CHOICE
+  extra: string | null  // "3 заданий, 5 решений" if non-class content exists
+}
+const transferModal = ref<TransferModalState | null>(null)
+const transferBusy = ref(false)
+
+/** All non-admin, non-blocked users except the target — eligible to receive a class. */
+const transferCandidates = computed(() => {
+  const target = transferModal.value?.user.id
+  return users.value.filter(
+    (u) => u.id !== target && !u.deleted_at && !u.is_admin,
+  )
+})
+
+const canConfirmTransfer = computed(() => {
+  const m = transferModal.value
+  if (!m) return false
+  return m.classes.every((c) => !!m.choices[c.id])
+})
+
+/** Button label adapts to whether all classes will be deleted, transferred, or mixed. */
+const confirmLabel = computed(() => {
+  const m = transferModal.value
+  if (!m) return 'Удалить'
+  const all = m.classes.map((c) => m.choices[c.id])
+  if (all.every((v) => v === DELETE_CHOICE)) return 'Удалить классы и пользователя'
+  if (all.every((v) => v && v !== DELETE_CHOICE)) return 'Передать все и удалить'
+  return 'Применить и удалить'
+})
+
+function pluralClasses(n: number): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'класс'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'класса'
+  return 'классов'
+}
+
+function canDelete(u: AdminUser): boolean {
+  if (u.is_admin) return false
+  if (u.id === auth.user?.id) return false
+  return true
+}
+
+function closeTransferModal() {
+  if (transferBusy.value) return
+  transferModal.value = null
+}
 
 const tab = ref<'users' | 'classes' | 'stats'>('users')
 const tabs = [
@@ -218,7 +360,7 @@ async function onBlock(u: AdminUser) {
     await adminApi.blockUser(u.id)
     await loadUsers()
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 
@@ -227,7 +369,7 @@ async function onUnblock(u: AdminUser) {
     await adminApi.unblockUser(u.id)
     await loadUsers()
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 
@@ -237,7 +379,63 @@ async function onDeleteClass(c: AdminClass) {
     await adminApi.deleteClass(c.id)
     await loadClasses()
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
+  }
+}
+
+async function onDeleteUser(u: AdminUser) {
+  if (!confirm(`Удалить пользователя ${u.username} безвозвратно?`)) return
+  try {
+    await adminApi.deleteUser(u.id)
+    toast.success(`Пользователь ${u.username} удалён`)
+    await loadUsers()
+  } catch (e) {
+    // 409 with classes_owned — open the transfer modal.
+    if (e instanceof AxiosError && e.response?.status === 409) {
+      const detail = e.response.data?.detail
+      const d = detail?.details
+      if (d && Array.isArray(d.classes_owned)) {
+        const choices: Record<string, string> = {}
+        for (const c of d.classes_owned) choices[c.id] = ''
+        const extras: string[] = []
+        if (d.announcements > 0) extras.push(`${d.announcements} объявлений`)
+        if (d.assignments > 0) extras.push(`${d.assignments} заданий`)
+        if (d.solutions > 0) extras.push(`${d.solutions} решений`)
+        transferModal.value = {
+          user: u,
+          classes: d.classes_owned,
+          choices,
+          extra: extras.length > 0 ? extras.join(', ') : null,
+        }
+        return
+      }
+    }
+    toast.error(extractError(e))
+  }
+}
+
+async function onConfirmTransferAndDelete() {
+  const m = transferModal.value
+  if (!m || !canConfirmTransfer.value) return
+  transferBusy.value = true
+  try {
+    // Per-class: either transfer to a chosen user, or delete the class.
+    for (const cls of m.classes) {
+      const choice = m.choices[cls.id]
+      if (choice === DELETE_CHOICE) {
+        await adminApi.deleteClass(cls.id)
+      } else {
+        await adminApi.transferClass(cls.id, choice)
+      }
+    }
+    await adminApi.deleteUser(m.user.id)
+    toast.success(`Пользователь ${m.user.username} удалён`)
+    transferModal.value = null
+    await loadUsers()
+  } catch (e) {
+    toast.error(extractError(e))
+  } finally {
+    transferBusy.value = false
   }
 }
 
@@ -266,75 +464,117 @@ onMounted(loadUsers)
 </script>
 
 <style scoped>
-.admin-hero {
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-border);
+.filter-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 18px;
 }
-.hero-eyebrow {
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-  margin-bottom: 8px;
-}
-.tabs {
+.filter-search { flex: 1; min-width: 260px; }
+.check {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--color-surface-sunken);
-  border-radius: var(--radius);
-  margin-bottom: 24px;
-}
-.tab {
-  background: transparent;
-  border: none;
-  padding: 8px 18px;
-  color: var(--color-text-muted);
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-.tab:hover { color: var(--color-text); }
-.tab.active {
-  color: var(--color-primary);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 18px;
-}
-.stat-card {
-  position: relative;
-  overflow: hidden;
-  text-align: left;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
-}
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), #3f8e72);
-}
-.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-.stat-label {
+  font-weight: 700;
   color: var(--color-text-muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  cursor: pointer;
+}
+.check input { width: 18px; height: 18px; }
+.td-strong { font-weight: 800; }
+
+.stat-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px) { .stat-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .stat-grid-4 { grid-template-columns: 1fr; } }
+
+/* ---------- Action buttons stack ---------- */
+.row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.action-btn {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+</style>
+
+<style>
+/* ---------- Modal (global to overlap entire page; teleported to body) ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 8, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+.modal {
+  width: min(580px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  padding: 28px 30px;
+  box-shadow: 0 30px 80px rgba(20, 14, 8, 0.35);
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   margin-bottom: 10px;
 }
-.stat-value {
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+.modal-sub {
+  font-size: 14.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.extra-warning {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.transfer-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-bg-2);
+  border: 1px solid transparent;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.transfer-row.will-delete {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger-soft);
+}
+.transfer-row.will-delete .transfer-class-name {
+  text-decoration: line-through;
+  color: var(--color-danger);
+}
+.transfer-class-name {
+  font-weight: 800;
+  font-size: 14px;
+}
+.transfer-select { font-size: 13.5px; }
+@media (max-width: 540px) {
+  .transfer-row { grid-template-columns: 1fr; }
 }
 </style>

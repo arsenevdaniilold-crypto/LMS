@@ -1,24 +1,31 @@
 <template>
   <div class="container page">
-    <div v-if="loading" class="card muted">Загрузка…</div>
+    <div v-if="loading" class="card sk-card">
+      <span class="sk-line" style="width: 35%"></span>
+      <span class="sk-line" style="width: 85%"></span>
+      <span class="sk-line" style="width: 70%"></span>
+    </div>
     <div v-else-if="!cls" class="card muted">Класс не найден</div>
     <template v-else>
-      <div class="row-between" style="margin-bottom: 16px">
+      <div class="split-title">
         <div>
-          <h1 class="page-title" style="margin: 0">{{ cls.name }}</h1>
-          <div class="row" style="margin-top: 4px">
-            <span class="tag" :class="cls.type === 'open' ? 'tag-info' : 'tag-warning'">
+          <div class="title-kicker">Карточка класса</div>
+          <h1 class="page-title">{{ cls.name }}</h1>
+          <div class="badges" style="margin-top: 10px">
+            <span class="badge" :class="cls.type === 'open' ? 'badge-open' : 'badge-closed'">
               {{ cls.type === 'open' ? 'открытый' : 'закрытый' }}
             </span>
-            <span v-if="cls.my_role" class="tag tag-success">{{ roleLabel(cls.my_role) }}</span>
-            <span v-if="cls.invite_code" class="tag">код: {{ cls.invite_code }}</span>
+            <span v-if="cls.my_role" class="badge" :class="roleBadge(cls.my_role)">
+              {{ roleLabel(cls.my_role) }}
+            </span>
+            <span v-if="cls.invite_code" class="badge">код: {{ cls.invite_code }}</span>
           </div>
         </div>
-        <div class="row">
-          <RouterLink v-if="isTeacher" :to="`/classes/${cls.id}/grades`" class="btn-secondary">
-            Оценки
+        <div class="split-title-right">
+          <RouterLink v-if="isTeacher" :to="`/classes/${cls.id}/grades`" class="btn-ghost">
+            Сводная таблица
           </RouterLink>
-          <button v-if="isTeacher" class="btn-secondary" @click="showRename = !showRename">
+          <button v-if="isTeacher" class="btn-ghost" @click="showRename = !showRename">
             Переименовать
           </button>
           <button
@@ -30,30 +37,31 @@
           </button>
         </div>
       </div>
+      <div class="title-line"></div>
 
       <div v-if="showRename" class="card" style="margin-bottom: 16px">
         <div class="row" style="gap: 8px">
           <input v-model="renameValue" :placeholder="cls.name" />
           <button class="btn-primary" @click="onRename">Сохранить</button>
-          <button class="btn-secondary" @click="showRename = false">Отмена</button>
+          <button class="btn-ghost" @click="showRename = false">Отмена</button>
         </div>
       </div>
 
-      <div class="tabs">
+      <div class="tabbar">
         <button
           v-for="t in tabs"
           :key="t.id"
           class="tab"
-          :class="{ active: tab === t.id }"
+          :class="{ on: tab === t.id }"
           @click="tab = t.id"
         >{{ t.label }}</button>
       </div>
 
       <!-- Лента: объявления + задания -->
       <div v-if="tab === 'feed'" class="stack">
-        <div v-if="isTeacher" class="row" style="margin-bottom: 8px">
-          <button class="btn-primary" @click="showNewAnn = !showNewAnn">+ Объявление</button>
-          <button class="btn-primary" @click="showNewAsn = !showNewAsn">+ Задание</button>
+        <div v-if="isTeacher" class="row" style="margin-bottom: 4px">
+          <button class="btn-primary" @click="showNewAnn = !showNewAnn">Новое объявление</button>
+          <button class="btn-accent" @click="showNewAsn = !showNewAsn">Новое задание</button>
         </div>
 
         <NewAnnouncementForm
@@ -70,7 +78,10 @@
           @cancel="showNewAsn = false"
         />
 
-        <div v-if="feedLoading" class="card muted">Загрузка…</div>
+        <div v-if="feedLoading" class="card sk-card">
+          <span class="sk-line" style="width: 25%"></span>
+          <span class="sk-line" style="width: 60%"></span>
+        </div>
         <div v-else-if="feed.length === 0" class="card muted">Пока ничего не опубликовано</div>
         <div v-else class="stack">
           <FeedItem
@@ -78,6 +89,7 @@
             :key="`${item.kind}-${item.id}`"
             :item="item"
             :is-teacher="isTeacher"
+            :can-delete="isAdmin"
             @deleted="onFeedItemDeleted"
             @updated="onFeedItemUpdated"
           />
@@ -85,46 +97,68 @@
       </div>
 
       <!-- Участники -->
-      <div v-else-if="tab === 'members'" class="card">
-        <div v-if="isTeacher" class="row" style="margin-bottom: 12px">
-          <input
-            v-model="inviteEmail"
-            placeholder="Email участника класса"
-            style="max-width: 320px"
-          />
-          <button class="btn-primary" :disabled="inviteLoading" @click="onInvite">
-            Назначить преподавателем
-          </button>
-          <span v-if="inviteError" class="error-text">{{ inviteError }}</span>
-          <span v-if="inviteSuccess" class="muted">{{ inviteSuccess }}</span>
+      <div v-else-if="tab === 'members'">
+        <div v-if="isTeacher" class="card invite-row" style="margin-bottom: 16px">
+          <p class="muted" style="font-size: 14px; margin-bottom: 14px">
+            Редактировать ленту, задания и материалы могут все преподаватели класса,
+            а удалять класс может только преподаватель-создатель.
+          </p>
+          <div class="row" style="flex-wrap: wrap; gap: 10px">
+            <input
+              v-model="inviteEmail"
+              placeholder="Email участника класса"
+              style="max-width: 320px; flex: 1"
+            />
+            <button class="btn-primary" :disabled="inviteLoading" @click="onInvite">
+              Пригласить преподавателем
+            </button>
+          </div>
+          <div v-if="inviteError" class="error-text" style="margin-top: 10px">{{ inviteError }}</div>
+          <div v-if="inviteSuccess" class="muted" style="margin-top: 10px; font-size: 14px">{{ inviteSuccess }}</div>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Email</th>
-              <th>Роль</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="m in members" :key="m.user_id">
-              <td>{{ m.username }}</td>
-              <td>{{ m.email }}</td>
-              <td>
-                <span class="tag" :class="roleTag(m.role)">{{ roleLabel(m.role) }}</span>
-              </td>
-              <td>
-                <button
-                  v-if="canRemove(m)"
-                  class="btn-secondary"
-                  style="font-size: 12px; padding: 4px 8px"
-                  @click="onRemove(m)"
-                >Исключить</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+        <div class="table-wrap">
+          <table class="cf-table">
+            <thead>
+              <tr>
+                <th>Пользователь</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>Присоединился</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in members" :key="m.user_id">
+                <td class="td-strong">{{ m.username }}</td>
+                <td>{{ m.email }}</td>
+                <td>
+                  <span class="badge" :class="roleBadge(m.role)">{{ roleLabel(m.role) }}</span>
+                </td>
+                <td>{{ formatDate(m.joined_at) }}</td>
+                <td>
+                  <button
+                    v-if="canRemove(m)"
+                    class="btn-soft"
+                    style="font-size: 13px; padding: 7px 14px"
+                    @click="onRemove(m)"
+                  >Исключить</button>
+                  <span v-else class="muted">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Материалы (заглушка под будущую функцию) -->
+      <div v-else-if="tab === 'materials'" class="card muted">
+        Раздел в разработке — здесь будут учебные файлы и ссылки класса.
+      </div>
+
+      <!-- Группы (для групповых заданий) -->
+      <div v-else-if="tab === 'groups'" class="card muted">
+        Группы появятся, когда создатель опубликует групповое задание.
       </div>
     </template>
   </div>
@@ -145,6 +179,7 @@ import { listAnnouncements } from '@/shared/api/announcements'
 import { listAssignments } from '@/shared/api/assignments'
 import { extractError } from '@/shared/api/errors'
 import { onNotification } from '@/shared/stores/notificationStore'
+import { useAuthStore } from '@/shared/stores/authStore'
 import type {
   Announcement,
   Assignment,
@@ -155,6 +190,9 @@ import type {
 import NewAnnouncementForm from '@/shared/ui/NewAnnouncementForm.vue'
 import NewAssignmentForm from '@/shared/ui/NewAssignmentForm.vue'
 import FeedItem from '@/shared/ui/FeedItem.vue'
+import { useToast } from '@/shared/stores/toastStore'
+
+const toast = useToast()
 
 const FEED_EVENTS = new Set([
   'announcement_created', 'announcement_updated', 'announcement_deleted',
@@ -181,11 +219,13 @@ const router = useRouter()
 
 const cls = ref<ClassDetail | null>(null)
 const loading = ref(true)
-const tab = ref<'feed' | 'members'>('feed')
+const tab = ref<'feed' | 'materials' | 'members' | 'groups'>('feed')
 
 const tabs = [
   { id: 'feed' as const, label: 'Лента' },
+  { id: 'materials' as const, label: 'Материалы' },
   { id: 'members' as const, label: 'Участники' },
+  { id: 'groups' as const, label: 'Группы' },
 ]
 
 const announcements = ref<Announcement[]>([])
@@ -206,6 +246,9 @@ const renameValue = ref('')
 const isTeacher = computed(
   () => cls.value?.my_role === 'teacher_creator' || cls.value?.my_role === 'teacher',
 )
+
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.is_admin === true)
 
 const feed = computed<FeedEntry[]>(() => {
   const items: FeedEntry[] = [
@@ -298,7 +341,7 @@ async function onRename() {
     cls.value = await updateClass(cls.value.id, { name })
     showRename.value = false
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 
@@ -309,7 +352,7 @@ async function onDelete() {
     await deleteClass(cls.value.id)
     await router.push('/')
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 
@@ -344,7 +387,7 @@ async function onRemove(m: ClassMember) {
     await removeMember(cls.value.id, m.user_id)
     await loadMembers()
   } catch (e) {
-    alert(extractError(e))
+    toast.error(extractError(e))
   }
 }
 
@@ -354,10 +397,19 @@ function roleLabel(r: MemberRole): string {
   return 'студент'
 }
 
-function roleTag(r: MemberRole): string {
-  if (r === 'teacher_creator') return 'tag-success'
-  if (r === 'teacher') return 'tag-info'
-  return ''
+function roleBadge(r: MemberRole): string {
+  if (r === 'teacher_creator') return 'badge-creator'
+  if (r === 'teacher') return 'badge-teacher'
+  return 'badge-student'
+}
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return iso
+  }
 }
 
 onMounted(async () => {
@@ -367,28 +419,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.tabs {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--color-surface-sunken);
-  border-radius: var(--radius);
-  margin-bottom: 24px;
-}
-.tab {
-  background: transparent;
-  border: none;
-  padding: 8px 18px;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-.tab:hover { color: var(--color-text); }
-.tab.active {
-  color: var(--color-primary);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
+.td-strong { font-weight: 800; }
+.invite-row p { color: var(--color-text-muted); }
 </style>
