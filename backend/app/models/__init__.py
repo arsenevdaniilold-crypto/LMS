@@ -4,6 +4,7 @@ from app.models.class_ import Class, ClassMember
 from app.models.announcement import Announcement, AnnouncementFile
 from app.models.assignment import Assignment, AssignmentMaterial, Group, GroupMember
 from app.models.solution import Solution, SolutionFile, GradeRedistribution
+from app.models.material import Material, MaterialItem
 from app.models.notification import Notification
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "Announcement", "AnnouncementFile",
     "Assignment", "AssignmentMaterial", "Group", "GroupMember",
     "Solution", "SolutionFile", "GradeRedistribution",
+    "Material", "MaterialItem",
     "Notification",
 ]

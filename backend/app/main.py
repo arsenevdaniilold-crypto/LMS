@@ -11,7 +11,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.routers import health
 from app.routers import auth, users, classes, announcements, assignments, solutions
-from app.routers import notifications, ws, admin
+from app.routers import materials, notifications, ws, admin
 from app.services.minio_storage import minio_storage
 
 
@@ -47,6 +47,7 @@ TAGS_METADATA = [
     {"name": "classes", "description": "Классы, участники, приглашения, вступление."},
     {"name": "announcements", "description": "Объявления в классе и вложения."},
     {"name": "assignments", "description": "Задания, материалы, группы (auto/manual)."},
+    {"name": "materials", "description": "Учебные материалы класса: файлы и ссылки."},
     {"name": "solutions", "description": "Решения, статусы, оценивание, перераспределение, сводка оценок."},
     {"name": "notifications", "description": "In-app уведомления (список и отметка прочитанным)."},
     {"name": "admin", "description": "Администрирование: пользователи, классы, статистика."},
@@ -80,6 +81,7 @@ app.include_router(users.router)
 app.include_router(classes.router)
 app.include_router(announcements.router)
 app.include_router(assignments.router)
+app.include_router(materials.router)
 app.include_router(solutions.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)

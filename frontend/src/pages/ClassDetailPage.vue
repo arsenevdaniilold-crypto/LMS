@@ -151,9 +151,39 @@
         </div>
       </div>
 
-      <!-- Материалы (заглушка под будущую функцию) -->
-      <div v-else-if="tab === 'materials'" class="card muted">
-        Раздел в разработке — здесь будут учебные файлы и ссылки класса.
+      <!-- Материалы: учебные файлы и ссылки класса -->
+      <div v-else-if="tab === 'materials'" class="stack">
+        <div v-if="isTeacher" class="row" style="margin-bottom: 4px">
+          <button class="btn-accent" @click="showNewMaterial = !showNewMaterial">
+            Новый материал
+          </button>
+        </div>
+
+        <NewMaterialForm
+          v-if="showNewMaterial"
+          :class-id="cls.id"
+          @created="onMaterialCreated"
+          @cancel="showNewMaterial = false"
+        />
+
+        <div v-if="materialsLoading" class="card sk-card">
+          <span class="sk-line" style="width: 30%"></span>
+          <span class="sk-line" style="width: 65%"></span>
+        </div>
+        <div v-else-if="materials.length === 0" class="card muted">
+          Пока нет материалов. {{ isTeacher ? 'Добавьте файлы или ссылки для студентов.' : 'Преподаватель ещё не загрузил материалы.' }}
+        </div>
+        <div v-else class="stack">
+          <MaterialCard
+            v-for="m in materials"
+            :key="m.id"
+            :material="m"
+            :is-teacher="isTeacher"
+            :can-delete="isAdmin"
+            @deleted="onMaterialDeleted"
+            @updated="onMaterialUpdated"
+          />
+        </div>
       </div>
 
       <!-- Группы (для групповых заданий) -->
@@ -177,6 +207,7 @@ import {
 } from '@/shared/api/classes'
 import { listAnnouncements } from '@/shared/api/announcements'
 import { listAssignments } from '@/shared/api/assignments'
+import { listMaterials } from '@/shared/api/materials'
 import { extractError } from '@/shared/api/errors'
 import { onNotification } from '@/shared/stores/notificationStore'
 import { useAuthStore } from '@/shared/stores/authStore'
@@ -185,11 +216,14 @@ import type {
   Assignment,
   ClassDetail,
   ClassMember,
+  Material,
   MemberRole,
 } from '@/shared/api/types'
 import NewAnnouncementForm from '@/shared/ui/NewAnnouncementForm.vue'
 import NewAssignmentForm from '@/shared/ui/NewAssignmentForm.vue'
+import NewMaterialForm from '@/shared/ui/NewMaterialForm.vue'
 import FeedItem from '@/shared/ui/FeedItem.vue'
+import MaterialCard from '@/shared/ui/MaterialCard.vue'
 import { useToast } from '@/shared/stores/toastStore'
 
 const toast = useToast()
@@ -198,11 +232,17 @@ const FEED_EVENTS = new Set([
   'announcement_created', 'announcement_updated', 'announcement_deleted',
   'assignment_created', 'assignment_updated', 'assignment_deleted',
 ])
+const MATERIAL_EVENTS = new Set([
+  'material_created', 'material_updated', 'material_deleted',
+])
 const unsub = onNotification((n) => {
   const p = n.payload as Record<string, string>
   if (!cls.value) return
-  if (p.class_id === cls.value.id && FEED_EVENTS.has(n.type)) {
+  if (p.class_id !== cls.value.id) return
+  if (FEED_EVENTS.has(n.type)) {
     void loadFeed()
+  } else if (MATERIAL_EVENTS.has(n.type)) {
+    void loadMaterials()
   }
 })
 onBeforeUnmount(() => unsub())
@@ -233,6 +273,11 @@ const assignments = ref<Assignment[]>([])
 const feedLoading = ref(false)
 const showNewAnn = ref(false)
 const showNewAsn = ref(false)
+
+const materials = ref<Material[]>([])
+const materialsLoading = ref(false)
+const materialsLoaded = ref(false)
+const showNewMaterial = ref(false)
 
 const members = ref<ClassMember[]>([])
 const inviteEmail = ref('')
@@ -301,8 +346,20 @@ async function loadMembers() {
   members.value = await listMembers(cls.value.id)
 }
 
+async function loadMaterials() {
+  if (!cls.value) return
+  materialsLoading.value = true
+  try {
+    materials.value = await listMaterials(cls.value.id)
+    materialsLoaded.value = true
+  } finally {
+    materialsLoading.value = false
+  }
+}
+
 watch(tab, (t) => {
   if (t === 'members') void loadMembers()
+  if (t === 'materials' && !materialsLoaded.value) void loadMaterials()
 })
 
 function onAnnouncementCreated(a: Announcement) {
@@ -331,6 +388,19 @@ function onFeedItemUpdated(kind: 'announcement' | 'assignment', data: Announceme
     const updated = data as Assignment
     assignments.value = assignments.value.map((x) => (x.id === updated.id ? updated : x))
   }
+}
+
+function onMaterialCreated(m: Material) {
+  materials.value = [m, ...materials.value]
+  showNewMaterial.value = false
+}
+
+function onMaterialDeleted(id: string) {
+  materials.value = materials.value.filter((x) => x.id !== id)
+}
+
+function onMaterialUpdated(data: Material) {
+  materials.value = materials.value.map((x) => (x.id === data.id ? data : x))
 }
 
 async function onRename() {

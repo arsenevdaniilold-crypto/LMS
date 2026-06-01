@@ -137,6 +137,7 @@
 :root[data-theme="dark"] .badge-student   { background: rgba(112, 128, 214, 0.22); color: #9ca8e6; }
 :root[data-theme="dark"] .badge-task      { background: rgba(76, 175, 134, 0.20); color: #79d3a8; }
 :root[data-theme="dark"] .badge-ann       { background: rgba(112, 128, 214, 0.22); color: #9ca8e6; }
+:root[data-theme="dark"] .badge-material  { background: rgba(80, 160, 178, 0.20); color: #84cad9; }
 :root[data-theme="dark"] .badge-draft     { background: rgba(212, 154, 74, 0.20); color: #e3b067; }
 :root[data-theme="dark"] .badge-submitted { background: rgba(76, 175, 134, 0.20); color: #79d3a8; }
 :root[data-theme="dark"] .badge-returned  { background: rgba(231, 101, 79, 0.20); color: #f08773; }
@@ -464,6 +465,7 @@ input.has-error:focus {
 .badge-student   { background: #eef0ff; color: #31318a; }
 .badge-task      { background: #dcefe3; color: #24543f; }
 .badge-ann       { background: #edf0ff; color: #2f3889; }
+.badge-material  { background: #e6eff1; color: #1f5360; }
 .badge-draft     { background: #f1e6cf; color: #7c5316; }
 .badge-submitted { background: #dcefe3; color: #24543f; }
 .badge-returned  { background: #ffe1dd; color: #9e2d20; }

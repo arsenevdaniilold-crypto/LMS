@@ -87,6 +87,25 @@ export interface Assignment {
   materials: AssignmentMaterial[]
 }
 
+export interface MaterialItem {
+  id: string
+  item_type: MaterialType
+  url: string | null
+  file_name: string | null
+  file_size: number | null
+  download_url: string | null
+}
+
+export interface Material {
+  id: string
+  class_id: string
+  title: string
+  description: string | null
+  author: UserShort
+  created_at: string
+  items: MaterialItem[]
+}
+
 export interface Group {
   id: string
   name: string
