@@ -43,9 +43,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     image: sk1su/lms-frontend
@@ -53,10 +50,6 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: npm run dev -- --host
 
 volumes:
   postgres_data:
