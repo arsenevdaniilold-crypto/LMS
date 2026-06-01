@@ -387,13 +387,22 @@ async def return_solution(
     assignment = await _get_assignment_or_404(db, solution.assignment_id)
     await _ensure_teacher(db, assignment, current_user)
 
-    if solution.status != SolutionStatus.submitted:
+    # Allow returning from submitted (normal), graded (teacher changed mind),
+    # or pending_redistribution (override before group agrees).
+    if solution.status not in (
+        SolutionStatus.submitted,
+        SolutionStatus.graded,
+        SolutionStatus.pending_redistribution,
+    ):
         raise ClassError(
             "INVALID_TRANSITION",
             f"Cannot return from status '{solution.status.value}'",
             409,
         )
     solution.status = SolutionStatus.returned
+    # Clear stale grade — the student is starting over.
+    solution.grade = None
+    solution.graded_at = None
     await db.flush()
     await notifications_service.notify(
         db,
@@ -418,7 +427,13 @@ async def grade_solution(
     assignment = await _get_assignment_or_404(db, solution.assignment_id)
     await _ensure_teacher(db, assignment, current_user)
 
-    if solution.status != SolutionStatus.submitted:
+    # Allow grading from submitted (initial), graded (change the grade),
+    # or pending_redistribution (override before group agrees).
+    if solution.status not in (
+        SolutionStatus.submitted,
+        SolutionStatus.graded,
+        SolutionStatus.pending_redistribution,
+    ):
         raise ClassError(
             "INVALID_TRANSITION",
             f"Cannot grade from status '{solution.status.value}'",

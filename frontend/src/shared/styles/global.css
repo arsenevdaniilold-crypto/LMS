@@ -7,21 +7,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* — Warm paper surfaces — */
-  --color-bg: #f6f1e9;
-  --bg-rgb: 246, 241, 233;
-  --color-bg-2: #efe8de;
-  --color-bg-3: #e5ddd1;
-  --color-surface: #fffdfa;
-  --color-surface-sunken: #fbf8f3;
-  --color-surface-hover: #fffcf6;
-  --color-border: #ddd3c8;
-  --color-border-strong: #cabfb2;
+  /* — Kraft-paper surfaces — deep enough to rest the eye, surface still
+     lighter than bg so cards lift visually. */
+  --color-bg: #dcd1bb;
+  --bg-rgb: 220, 209, 187;
+  --color-bg-2: #d2c6ad;
+  --color-bg-3: #c4b698;
+  --color-surface: #ebe3d0;
+  --color-surface-sunken: #e2d8c1;
+  --color-surface-hover: #e8e0cc;
+  --color-border: #b9ab8e;
+  --color-border-strong: #9e9075;
 
-  /* — Ink — */
-  --color-text: #171511;
-  --color-text-muted: #6e6a63;
-  --color-text-subtle: #aba39a;
+  /* — Ink (slightly darker for contrast against deeper paper) — */
+  --color-text: #1a1308;
+  --color-text-muted: #5e5440;
+  --color-text-subtle: #8a7e64;
 
   /* — Forest emerald (the signature accent) — */
   --color-primary: #2c6b52;
@@ -610,7 +611,7 @@ table.cf-table td {
   font-size: 15px;
 }
 table.data-table tbody tr:hover td,
-table.cf-table tbody tr:hover td { background: #fffcf6; }
+table.cf-table tbody tr:hover td { background: var(--color-surface-hover); }
 
 /* ============================================================
    Motion utilities

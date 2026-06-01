@@ -60,8 +60,15 @@
     </div>
 
     <!-- Действия преподавателя -->
-    <div v-if="isTeacher && solution.status === 'submitted'" class="card" style="margin-top: 12px; background: var(--color-surface-sunken)">
+    <div
+      v-if="isTeacher && canTeacherAct"
+      class="card"
+      style="margin-top: 12px; background: var(--color-surface-sunken)"
+    >
       <div class="stack">
+        <div v-if="solution.status === 'graded' || solution.status === 'pending_redistribution'" class="muted" style="font-size: 13px">
+          Текущая оценка: <strong>{{ solution.grade }}</strong>. Можно изменить или вернуть на доработку.
+        </div>
         <div class="row" style="gap: 8px">
           <input
             v-model.number="gradeInput"
@@ -69,11 +76,11 @@
             step="0.01"
             :min="0"
             :max="gradeMax"
-            placeholder="Оценка"
+            :placeholder="solution.grade ?? 'Оценка'"
             style="max-width: 120px"
           />
           <button class="btn-primary" :disabled="actionLoading" @click="onGrade">
-            Поставить оценку
+            {{ solution.grade ? 'Изменить оценку' : 'Поставить оценку' }}
           </button>
           <button class="btn-secondary" :disabled="actionLoading" @click="onReturn">
             Вернуть на доработку
@@ -128,6 +135,14 @@ const actionError = ref('')
 
 const canEdit = computed(
   () => props.solution.status === 'created' || props.solution.status === 'returned',
+)
+
+/** Teacher panel is shown for submitted (initial), graded (re-grade or
+ *  return), and pending_redistribution (override before group agrees). */
+const canTeacherAct = computed(() =>
+  props.solution.status === 'submitted' ||
+  props.solution.status === 'graded' ||
+  props.solution.status === 'pending_redistribution',
 )
 
 const statusLabel = computed(() => {

@@ -1,6 +1,5 @@
 <template>
   <div class="card feed-item" :class="kindClass">
-    <span class="feed-stripe" aria-hidden="true"></span>
     <div class="feed-head">
       <div class="badges">
         <span class="badge" :class="item.kind === 'announcement' ? 'badge-ann' : 'badge-task'">
@@ -218,27 +217,10 @@ async function onDelete() {
 <style scoped>
 .feed-item {
   position: relative;
-  padding-left: 30px;
   transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
   overflow: hidden;
 }
 .feed-item:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-
-.feed-stripe {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-  background: var(--color-border);
-}
-.feed-item-task .feed-stripe {
-  background: linear-gradient(180deg, var(--color-primary), #3f8e72);
-}
-.feed-item-ann .feed-stripe {
-  background: linear-gradient(180deg, #5e6bd6, #3e4ab9);
-}
 
 .deadline-chip {
   display: inline-flex;
