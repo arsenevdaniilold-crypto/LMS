@@ -43,7 +43,7 @@
           <!-- Doodles -->
           <svg class="doodle wave-1" viewBox="0 0 200 60" fill="none" aria-hidden="true">
             <path d="M2 30 Q 20 5, 40 30 T 80 30 T 120 30 T 160 30 T 200 30"
-                  stroke="#2c6b52" stroke-width="3" stroke-linecap="round" fill="none"/>
+                  stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round" fill="none"/>
           </svg>
           <svg class="doodle wave-2" viewBox="0 0 160 40" fill="none" aria-hidden="true">
             <path d="M2 20 Q 16 4, 30 20 T 60 20 T 90 20 T 120 20 T 160 20"
@@ -52,17 +52,17 @@
 
           <svg class="doodle star star-1" viewBox="0 0 30 30" fill="none" aria-hidden="true">
             <path d="M15 1 L18 11 L29 13 L20 20 L23 30 L15 24 L7 30 L10 20 L1 13 L12 11 Z"
-                  fill="#ffe35c" stroke="#171511" stroke-width="1.5" stroke-linejoin="round"/>
+                  fill="var(--color-accent)" stroke="#171511" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
           <svg class="doodle star star-2" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 1 L14 9 L23 10 L16 16 L18 24 L12 19 L6 24 L8 16 L1 10 L10 9 Z"
-                  fill="#2c6b52"/>
+                  fill="var(--color-primary)"/>
           </svg>
           <svg class="doodle sparkle sparkle-1" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="M10 0 L11 9 L20 10 L11 11 L10 20 L9 11 L0 10 L9 9 Z" fill="#ffe35c"/>
+            <path d="M10 0 L11 9 L20 10 L11 11 L10 20 L9 11 L0 10 L9 9 Z" fill="var(--color-accent)"/>
           </svg>
           <svg class="doodle sparkle sparkle-2" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M7 0 L8 6 L14 7 L8 8 L7 14 L6 8 L0 7 L6 6 Z" fill="#2c6b52"/>
+            <path d="M7 0 L8 6 L14 7 L8 8 L7 14 L6 8 L0 7 L6 6 Z" fill="var(--color-primary)"/>
           </svg>
 
           <svg class="doodle dots" viewBox="0 0 60 60" fill="none" aria-hidden="true">
@@ -79,7 +79,7 @@
 
           <svg class="doodle arrow" viewBox="0 0 80 60" fill="none" aria-hidden="true">
             <path d="M5 30 Q 30 5, 70 25 M 60 18 L 70 25 L 62 32"
-                  stroke="#2c6b52" stroke-width="2.5" stroke-linecap="round"
+                  stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round"
                   stroke-linejoin="round" fill="none"/>
           </svg>
 
@@ -325,9 +325,9 @@ async function onSubmit() {
   justify-content: center;
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 227, 92, 0.28), transparent 34%),
-    radial-gradient(circle at 80% 30%, rgba(44, 107, 82, 0.09), transparent 30%),
-    linear-gradient(135deg, rgba(44, 107, 82, 0.06), rgba(255, 227, 92, 0.05));
+    radial-gradient(circle at 20% 20%, rgba(91, 130, 224, 0.22), transparent 34%),
+    radial-gradient(circle at 80% 30%, rgba(47, 95, 208, 0.10), transparent 30%),
+    linear-gradient(135deg, rgba(47, 95, 208, 0.06), rgba(91, 130, 224, 0.05));
   border-radius: 28px;
 }
 .hero-blob {
@@ -336,8 +336,8 @@ async function onSubmit() {
   background: var(--color-accent);
   pointer-events: none;
 }
-.hero-blob.a { width: 520px; height: 520px; top: -120px; right: -80px; filter: saturate(1.05); opacity: 0.85; }
-.hero-blob.b { width: 340px; height: 340px; bottom: -120px; left: -90px; opacity: 0.55; }
+.hero-blob.a { width: 520px; height: 520px; top: -120px; right: -80px; filter: saturate(1.05); opacity: 0.55; }
+.hero-blob.b { width: 340px; height: 340px; bottom: -120px; left: -90px; opacity: 0.40; }
 .hero-sweep {
   position: absolute;
   width: 360px;

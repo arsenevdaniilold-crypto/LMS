@@ -7,43 +7,44 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* — Kraft-paper surfaces — deep enough to rest the eye, surface still
-     lighter than bg so cards lift visually. */
-  --color-bg: #dcd1bb;
-  --bg-rgb: 220, 209, 187;
-  --color-bg-2: #d2c6ad;
-  --color-bg-3: #c4b698;
-  --color-surface: #ebe3d0;
-  --color-surface-sunken: #e2d8c1;
-  --color-surface-hover: #e8e0cc;
-  --color-border: #b9ab8e;
-  --color-border-strong: #9e9075;
+  /* — Cool-white surfaces (slight blue undertone) — */
+  --color-bg: #eef1f4;
+  --bg-rgb: 238, 241, 244;
+  --color-bg-2: #e4e8ed;
+  --color-bg-3: #d6dde4;
+  --color-surface: #fafbfc;
+  --color-surface-sunken: #f1f4f7;
+  --color-surface-hover: #f4f6f9;
+  --color-border: #d4dae1;
+  --color-border-strong: #bcc5cf;
 
-  /* — Ink (slightly darker for contrast against deeper paper) — */
-  --color-text: #1a1308;
-  --color-text-muted: #5e5440;
-  --color-text-subtle: #8a7e64;
+  /* — Ink (cool dark for the white surfaces) — */
+  --color-text: #1b232c;
+  --color-text-muted: #566370;
+  --color-text-subtle: #8a96a3;
 
-  /* — Forest emerald (the signature accent) — */
-  --color-primary: #2c6b52;
-  --color-primary-hover: #224f3d;
-  --color-primary-soft: #dcefe3;
-  --color-primary-ring: rgba(44, 107, 82, 0.22);
+  /* — Royal blue (the signature accent) — */
+  --color-primary: #2f5fd0;
+  --color-primary-hover: #274fb5;
+  --color-primary-soft: #dde6fa;
+  --color-primary-ring: rgba(47, 95, 208, 0.22);
 
-  /* — Yellow accent (highlight + CTA) — */
-  --color-accent: #ffe35c;
-  --color-accent-hover: #efc500;
-  --color-accent-soft: #fff0cb;
+  /* — Accent = a brighter blue (replaces the old yellow; keeps one cohesive
+     palette). On accent surfaces text is white in light theme. — */
+  --color-accent: #3f6fe0;
+  --color-accent-hover: #2f5fd0;
+  --color-accent-soft: #dde6fa;
+  --accent-ink: #ffffff;            /* readable text on the blue accent (light theme) */
 
-  /* — Status (paper-friendly) — */
-  --color-danger: #b63a2b;
-  --color-danger-soft: #ffe7e2;
-  --color-success: #2c6b52;
-  --color-success-soft: #dcefe3;
-  --color-warning: #895800;
-  --color-warning-soft: #fff0cb;
-  --color-info: #31318a;
-  --color-info-soft: #eef0ff;
+  /* — Status (cool, no green-emerald / no yellow signature) — */
+  --color-danger: #b03f33;
+  --color-danger-soft: #f6e0dc;
+  --color-success: #3f7a5a;
+  --color-success-soft: #dcefe6;
+  --color-warning: #9a6512;
+  --color-warning-soft: #f3e6cc;
+  --color-info: #2f5fd0;
+  --color-info-soft: #dde6fa;
 
   /* — Radius scale — */
   --radius-xs: 10px;
@@ -64,7 +65,7 @@
     0 14px 32px -8px rgba(20, 14, 8, 0.12),
     0 24px 64px -16px rgba(20, 14, 8, 0.18);
   --shadow-accent:
-    0 6px 18px -6px rgba(44, 107, 82, 0.45);
+    0 6px 18px -6px rgba(47, 95, 208, 0.40);
 
   /* — Type stack — */
   --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -104,6 +105,7 @@
   --color-accent: #ffe35c;
   --color-accent-hover: #ffd431;
   --color-accent-soft: rgba(255, 227, 92, 0.16);
+  --accent-ink: #171511;            /* dark text on yellow accent (dark theme) */
 
   --color-danger: #e7654f;
   --color-danger-soft: rgba(231, 101, 79, 0.18);
@@ -253,11 +255,11 @@ button:focus-visible {
 
 .btn-accent {
   background: var(--color-accent);
-  color: #171511;  /* always dark — yellow is too bright for light text */
+  color: var(--accent-ink);  /* white on blue (light) / dark on yellow (dark theme) */
 }
 .btn-accent:hover {
   background: var(--color-accent-hover);
-  color: #171511;
+  color: var(--accent-ink);
   transform: translateY(-1px);
 }
 
@@ -460,7 +462,7 @@ input.has-error:focus {
 }
 .badge-open      { background: #dcefe3; color: #24543f; }
 .badge-closed    { background: #f1e6cf; color: #7c5316; }
-.badge-creator   { background: var(--color-accent); color: #171511; }
+.badge-creator   { background: var(--color-accent); color: var(--accent-ink); }
 .badge-teacher   { background: #fff0cb; color: #895800; }
 .badge-student   { background: #eef0ff; color: #31318a; }
 .badge-task      { background: #dcefe3; color: #24543f; }

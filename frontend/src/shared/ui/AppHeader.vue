@@ -115,13 +115,13 @@ async function onLogout() {
 .top-link.router-link-active::after { transform: scaleX(1); }
 .top-link.admin-chip {
   background: var(--color-accent);
-  color: #171511;
+  color: var(--accent-ink);
   padding: 8px 14px;
   border-radius: var(--radius-pill);
   border-bottom: none;
 }
 .top-link.admin-chip::after { display: none; }
-.top-link.admin-chip:hover { background: var(--color-accent-hover); color: #171511; border-bottom: none; }
+.top-link.admin-chip:hover { background: var(--color-accent-hover); color: var(--accent-ink); border-bottom: none; }
 
 /* ---------- Right cluster ---------- */
 .top-right {
