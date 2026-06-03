@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -17,7 +18,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     return jwt.encode(
-        {"sub": subject, "exp": expire, "type": "access"},
+        {"sub": subject, "exp": expire, "type": "access", "jti": uuid.uuid4().hex},
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
@@ -26,7 +27,7 @@ def create_access_token(subject: str) -> str:
 def create_refresh_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
     return jwt.encode(
-        {"sub": subject, "exp": expire, "type": "refresh"},
+        {"sub": subject, "exp": expire, "type": "refresh", "jti": uuid.uuid4().hex},
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
