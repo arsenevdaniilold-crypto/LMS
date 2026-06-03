@@ -178,18 +178,36 @@
     <Teleport to="body">
       <div v-if="transferModal" class="overlay" @click.self="closeTransferModal">
         <div class="modal">
-          <div class="modal-title">Передать классы и удалить</div>
+          <div class="modal-title">Удаление пользователя</div>
           <p class="modal-sub">
-            У пользователя <strong>{{ transferModal.user.username }}</strong>
-            ещё есть {{ transferModal.classes.length }} {{ pluralClasses(transferModal.classes.length) }} как создатель.
-            Передайте каждый другому пользователю — после этого аккаунт будет удалён.
+            <template v-if="transferModal.classes.length > 0">
+              У пользователя <strong>{{ transferModal.user.username }}</strong>
+              ещё есть {{ transferModal.classes.length }} {{ pluralClasses(transferModal.classes.length) }} как создатель.
+              Передайте каждый другому пользователю или удалите — после этого аккаунт будет удалён.
+            </template>
+            <template v-else>
+              У пользователя <strong>{{ transferModal.user.username }}</strong>
+              нет классов как создатель, но числится контент. Удалите его, чтобы стереть аккаунт.
+            </template>
           </p>
 
-          <div v-if="transferModal.extra" class="extra-warning">
-            Также числится контента: {{ transferModal.extra }}. Сначала удалите его вручную, иначе аккаунт не получится удалить.
+          <!-- «Назначить все одному» — массовое заполнение -->
+          <div v-if="transferModal.classes.length > 1" class="bulk-row">
+            <span class="bulk-label">Назначить все классы одному:</span>
+            <select v-model="bulkTarget" class="transfer-select">
+              <option value="">— выбрать получателя —</option>
+              <option
+                v-for="u in transferCandidates"
+                :key="u.id"
+                :value="u.id"
+              >{{ u.username }} ({{ u.email }})</option>
+            </select>
+            <button class="btn-ghost bulk-apply" :disabled="!bulkTarget" @click="applyBulkTarget">
+              Применить ко всем
+            </button>
           </div>
 
-          <div class="transfer-list">
+          <div v-if="transferModal.classes.length > 0" class="transfer-list">
             <div
               v-for="cls in transferModal.classes"
               :key="cls.id"
@@ -211,11 +229,22 @@
             </div>
           </div>
 
+          <!-- Контент (объявления/задания/решения), который transfer не покрывает -->
+          <div v-if="transferModal.extra" class="extra-warning">
+            <div style="margin-bottom: 10px">
+              Также числится контент: {{ transferModal.extra }}. Передача классов его не затрагивает.
+            </div>
+            <label class="force-check">
+              <input type="checkbox" v-model="forceWipe" />
+              удалить весь контент пользователя
+            </label>
+          </div>
+
           <div class="row" style="margin-top: 20px; justify-content: flex-end; gap: 10px">
             <button class="btn-ghost" :disabled="transferBusy" @click="closeTransferModal">Отмена</button>
             <button
               class="btn-danger"
-              :disabled="!canConfirmTransfer || transferBusy"
+              :disabled="!canConfirm || transferBusy"
               @click="onConfirmTransferAndDelete"
             >
               {{ transferBusy ? 'Выполняем…' : confirmLabel }}
@@ -251,6 +280,8 @@ interface TransferModalState {
 }
 const transferModal = ref<TransferModalState | null>(null)
 const transferBusy = ref(false)
+const bulkTarget = ref('')   // chosen recipient for "assign all classes to one"
+const forceWipe = ref(false) // wipe non-class content (announcements/assignments/solutions)
 
 /** All non-admin, non-blocked users except the target — eligible to receive a class. */
 const transferCandidates = computed(() => {
@@ -260,16 +291,28 @@ const transferCandidates = computed(() => {
   )
 })
 
-const canConfirmTransfer = computed(() => {
+/** Fill every class choice with the bulk-selected recipient. */
+function applyBulkTarget() {
+  const m = transferModal.value
+  if (!m || !bulkTarget.value) return
+  for (const c of m.classes) m.choices[c.id] = bulkTarget.value
+}
+
+const canConfirm = computed(() => {
   const m = transferModal.value
   if (!m) return false
-  return m.classes.every((c) => !!m.choices[c.id])
+  // Every class must have a chosen action.
+  const classesReady = m.classes.every((c) => !!m.choices[c.id])
+  // If extra content exists, the admin must tick the wipe checkbox.
+  const contentReady = !m.extra || forceWipe.value
+  return classesReady && contentReady
 })
 
-/** Button label adapts to whether all classes will be deleted, transferred, or mixed. */
+/** Button label adapts to the selected actions. */
 const confirmLabel = computed(() => {
   const m = transferModal.value
   if (!m) return 'Удалить'
+  if (m.classes.length === 0) return 'Удалить контент и пользователя'
   const all = m.classes.map((c) => m.choices[c.id])
   if (all.every((v) => v === DELETE_CHOICE)) return 'Удалить классы и пользователя'
   if (all.every((v) => v && v !== DELETE_CHOICE)) return 'Передать все и удалить'
@@ -401,6 +444,8 @@ async function onDeleteUser(u: AdminUser) {
         if (d.announcements > 0) extras.push(`${d.announcements} объявлений`)
         if (d.assignments > 0) extras.push(`${d.assignments} заданий`)
         if (d.solutions > 0) extras.push(`${d.solutions} решений`)
+        bulkTarget.value = ''
+        forceWipe.value = false
         transferModal.value = {
           user: u,
           classes: d.classes_owned,
@@ -416,7 +461,7 @@ async function onDeleteUser(u: AdminUser) {
 
 async function onConfirmTransferAndDelete() {
   const m = transferModal.value
-  if (!m || !canConfirmTransfer.value) return
+  if (!m || !canConfirm.value) return
   transferBusy.value = true
   try {
     // Per-class: either transfer to a chosen user, or delete the class.
@@ -428,7 +473,9 @@ async function onConfirmTransferAndDelete() {
         await adminApi.transferClass(cls.id, choice)
       }
     }
-    await adminApi.deleteUser(m.user.id)
+    // force=true wipes leftover non-class content (announcements/assignments/
+    // solutions) the admin opted to remove.
+    await adminApi.deleteUser(m.user.id, forceWipe.value)
     toast.success(`Пользователь ${m.user.username} удалён`)
     transferModal.value = null
     await loadUsers()
@@ -538,13 +585,38 @@ onMounted(loadUsers)
   margin-bottom: 18px;
 }
 .extra-warning {
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: var(--color-warning-soft);
   color: var(--color-warning);
   font-size: 13px;
-  margin-bottom: 16px;
+  margin-top: 16px;
 }
+.force-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.force-check input { width: 17px; height: 17px; }
+
+/* «Assign all classes to one» bulk row */
+.bulk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--color-primary-soft);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+.bulk-label { font-size: 13.5px; font-weight: 800; color: var(--color-text); }
+.bulk-row .transfer-select { flex: 1; min-width: 200px; }
+.bulk-apply { font-size: 13px; padding: 9px 16px; white-space: nowrap; }
+
 .transfer-list {
   display: flex;
   flex-direction: column;

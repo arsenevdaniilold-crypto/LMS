@@ -37,9 +37,10 @@ export async function getStats(): Promise<AdminStats> {
   return data
 }
 
-/** Hard-deletes a user; throws 409 with details.classes_owned if any. */
-export async function deleteUser(id: string): Promise<void> {
-  await http.delete(`/admin/users/${id}`)
+/** Hard-deletes a user; throws 409 with details.classes_owned if any.
+ *  Pass force=true to wipe all of the user's content and classes outright. */
+export async function deleteUser(id: string, force = false): Promise<void> {
+  await http.delete(`/admin/users/${id}`, { params: force ? { force: true } : {} })
 }
 
 /** Reassigns a class to a new creator. */

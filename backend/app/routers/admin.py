@@ -69,13 +69,15 @@ async def unblock_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: uuid.UUID,
+    force: bool = Query(default=False),
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Hard-delete a user. Returns 409 with `details.classes_owned` if the
-    user still owns content. Use POST /classes/{id}/transfer first."""
+    """Hard-delete a user. Returns 409 with `details` if the user still owns
+    content (transfer classes first). Pass `force=true` to wipe all of the
+    user's content and classes outright."""
     try:
-        await admin_service.delete_user(db, user_id, admin)
+        await admin_service.delete_user(db, user_id, admin, force=force)
     except ClassError as exc:
         _raise(exc)
 

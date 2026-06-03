@@ -8,7 +8,7 @@ from app.models.announcement import Announcement, AnnouncementFile
 from app.models.assignment import Assignment
 from app.models.class_ import Class, ClassMember
 from app.models.enums import MemberRole
-from app.models.solution import Solution, SolutionFile
+from app.models.solution import GradeRedistribution, Solution, SolutionFile
 from app.models.user import RefreshToken, User
 from app.services.classes import ClassError
 
@@ -172,17 +172,21 @@ async def transfer_class(
     return cls
 
 
-async def delete_user(db: AsyncSession, user_id: uuid.UUID, admin: User) -> None:
+async def delete_user(
+    db: AsyncSession, user_id: uuid.UUID, admin: User, *, force: bool = False
+) -> None:
     """Physically remove a user from the database.
 
-    Refuses with 409 USER_HAS_CONTENT if the user still owns *active*
-    classes/announcements/assignments/solutions (admin needs to transfer or
-    delete them first via the modal).
+    By default refuses with 409 USER_HAS_CONTENT if the user still owns
+    *active* classes/announcements/assignments/solutions (admin transfers or
+    deletes them first via the modal).
 
-    However, *soft-deleted* classes that the user created are physically
-    removed here — they were already gone from the user's perspective, but
-    PostgreSQL FK still pointed at the user. Cascading FKs drop their
-    members, announcements, assignments, materials, solutions.
+    With ``force=True`` the admin explicitly chose to wipe everything: all of
+    the user's content (solutions, announcements, assignments + cascades) and
+    classes are physically removed, then the user.
+
+    Soft-deleted classes the user created are always swept (they were already
+    gone from the user's view but still held a FK).
     """
     user = await _get_user_or_404(db, user_id)
     if user.id == admin.id:
@@ -190,45 +194,62 @@ async def delete_user(db: AsyncSession, user_id: uuid.UUID, admin: User) -> None
     if user.is_admin:
         raise ClassError("CANNOT_DELETE_ADMIN", "Admins cannot be deleted; remove admin rights first", 400)
 
-    # Active conflicts — these block the delete and require admin action.
-    owned_active_classes = list((await db.execute(
-        select(Class.id, Class.name).where(
-            Class.creator_id == user.id, Class.deleted_at.is_(None),
-        )
-    )).all())
-    ann_count = int((await db.execute(
-        select(func.count(Announcement.id)).where(Announcement.author_id == user.id)
-    )).scalar() or 0)
-    asn_count = int((await db.execute(
-        select(func.count(Assignment.id)).where(Assignment.author_id == user.id)
-    )).scalar() or 0)
-    sol_count = int((await db.execute(
-        select(func.count(Solution.id)).where(Solution.creator_id == user.id)
-    )).scalar() or 0)
+    if not force:
+        # Active conflicts — these block the delete and require admin action.
+        owned_active_classes = list((await db.execute(
+            select(Class.id, Class.name).where(
+                Class.creator_id == user.id, Class.deleted_at.is_(None),
+            )
+        )).all())
+        ann_count = int((await db.execute(
+            select(func.count(Announcement.id)).where(Announcement.author_id == user.id)
+        )).scalar() or 0)
+        asn_count = int((await db.execute(
+            select(func.count(Assignment.id)).where(Assignment.author_id == user.id)
+        )).scalar() or 0)
+        sol_count = int((await db.execute(
+            select(func.count(Solution.id)).where(Solution.creator_id == user.id)
+        )).scalar() or 0)
 
-    if owned_active_classes or ann_count or asn_count or sol_count:
-        raise ClassError(
-            "USER_HAS_CONTENT",
-            "User still owns content. Transfer or delete it first.",
-            409,
-            details={
-                "classes_owned": [
-                    {"id": str(c.id), "name": c.name} for c in owned_active_classes
-                ],
-                "announcements": ann_count,
-                "assignments": asn_count,
-                "solutions": sol_count,
-            },
-        )
+        if owned_active_classes or ann_count or asn_count or sol_count:
+            raise ClassError(
+                "USER_HAS_CONTENT",
+                "User still owns content. Transfer or delete it first.",
+                409,
+                details={
+                    "classes_owned": [
+                        {"id": str(c.id), "name": c.name} for c in owned_active_classes
+                    ],
+                    "announcements": ann_count,
+                    "assignments": asn_count,
+                    "solutions": sol_count,
+                },
+            )
 
-    # Sweep any soft-deleted classes still pointing at this user. Cascading
-    # FKs (class_members, announcements, assignments) clean up their content.
-    stale_classes = list((await db.execute(
+    if force:
+        # Wipe all content the user owns. Order matters because several FKs
+        # don't cascade from users.
+        # 1. The user's rows inside *other* solutions' redistribution tables.
+        await db.execute(
+            delete(GradeRedistribution).where(GradeRedistribution.user_id == user.id)
+        )
+        # 2. The user's own solutions (cascades: solution_files, their redistributions).
+        await db.execute(delete(Solution).where(Solution.creator_id == user.id))
+        # 3. The user's announcements (cascades: announcement_files).
+        await db.execute(delete(Announcement).where(Announcement.author_id == user.id))
+        # 4. The user's assignments (cascades: materials, groups→group_members,
+        #    other students' solutions on these assignments).
+        await db.execute(delete(Assignment).where(Assignment.author_id == user.id))
+        await db.flush()
+
+    # Sweep classes the user created (active + soft-deleted). Cascading FKs
+    # (class_members, announcements, assignments) clean up their content.
+    owned_classes = list((await db.execute(
         select(Class).where(Class.creator_id == user.id)
     )).scalars().all())
-    for cls in stale_classes:
+    for cls in owned_classes:
         await db.delete(cls)
-    if stale_classes:
+    if owned_classes:
         await db.flush()
 
     # Safe to hard-delete: cascades take care of class_members, notifications,
