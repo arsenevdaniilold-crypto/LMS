@@ -13,15 +13,52 @@ from app.services import classes as classes_service
 from app.services.classes import ClassError
 
 
+GRADE_SCALE_MAX: dict[str, Decimal] = {
+    "0-5": Decimal("5"),
+    "0-100": Decimal("100"),
+    "0-1": Decimal("1"),
+}
+
+
+def _normalize_average(values: list[tuple[Decimal, str]]) -> Decimal | None:
+    """Compute an average grade normalized to the 0..100 scale.
+
+    Each ``(grade, scale)`` is rescaled to 0..100 first, then we take the
+    arithmetic mean (the user explicitly asked for the simple mean across
+    assignments — even when the underlying grade scales differ)."""
+    if not values:
+        return None
+    total = Decimal("0")
+    for grade, scale in values:
+        max_v = GRADE_SCALE_MAX.get(scale, Decimal("100"))
+        if max_v == 0:
+            continue
+        total += (grade / max_v) * Decimal("100")
+    avg = total / Decimal(len(values))
+    return avg.quantize(Decimal("0.01"))
+
+
 async def get_class_grades(
     db: AsyncSession, class_id: uuid.UUID, current_user: User
 ) -> dict:
     await classes_service.get_class_or_404(db, class_id)
     membership = await classes_service.get_membership(db, class_id, current_user.id)
-    if (membership is None or not classes_service.is_teacher_role(membership.role)) and not current_user.is_admin:
-        raise ClassError("FORBIDDEN", "Only teachers can view grades summary", 403)
+    if membership is None and not current_user.is_admin:
+        raise ClassError("FORBIDDEN", "You are not a member of this class", 403)
 
-    students_result = await db.execute(
+    # If the viewer is a *student* in this class, hide other students even if
+    # they happen to be a platform admin. Admin power-view is only for users
+    # who aren't enrolled as students in this specific class.
+    is_student_member = (
+        membership is not None
+        and membership.role == MemberRole.student
+    )
+    is_teacher_view = not is_student_member and (
+        (membership is not None and classes_service.is_teacher_role(membership.role))
+        or current_user.is_admin
+    )
+
+    students_stmt = (
         select(User)
         .join(ClassMember, ClassMember.user_id == User.id)
         .where(
@@ -31,6 +68,9 @@ async def get_class_grades(
         )
         .order_by(User.username.asc())
     )
+    if not is_teacher_view:
+        students_stmt = students_stmt.where(User.id == current_user.id)
+    students_result = await db.execute(students_stmt)
     students = list(students_result.scalars().all())
 
     assignments_result = await db.execute(
@@ -70,6 +110,7 @@ async def get_class_grades(
     students_payload = []
     for student in students:
         cells: dict[uuid.UUID, dict] = {}
+        grade_pairs: list[tuple[Decimal, str]] = []
         for assignment in assignments:
             assignment_solutions = solutions_index.get(assignment.id, [])
             cell: dict = {"solution_id": None, "status": None, "grade": None}
@@ -91,14 +132,28 @@ async def get_class_grades(
                 else:
                     cell["grade"] = relevant.grade
             cells[assignment.id] = cell
+            if cell["grade"] is not None:
+                grade_pairs.append((cell["grade"], assignment.grade_type.value))
 
         students_payload.append({
             "user_id": student.id,
             "username": student.username,
             "grades": cells,
+            "average": _normalize_average(grade_pairs),
         })
 
+    class_avg_values = [
+        (cell["grade"], next(a for a in assignments if a.id == aid).grade_type.value)
+        for student in students_payload
+        for aid, cell in student["grades"].items()
+        if cell["grade"] is not None
+    ]
+    class_average = _normalize_average(class_avg_values) if is_teacher_view else None
+
     return {
+        "viewer_role": (
+            "teacher" if is_teacher_view else "student"
+        ),
         "assignments": [
             {
                 "id": a.id,
@@ -109,4 +164,5 @@ async def get_class_grades(
             for a in assignments
         ],
         "students": students_payload,
+        "class_average": class_average,
     }

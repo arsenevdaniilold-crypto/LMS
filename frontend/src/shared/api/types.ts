@@ -152,6 +152,7 @@ export interface GradeMatrixStudent {
   user_id: string
   username: string
   grades: Record<string, GradeMatrixCell>
+  average: string | null
 }
 
 export interface GradeMatrixAssignment {
@@ -162,16 +163,19 @@ export interface GradeMatrixAssignment {
 }
 
 export interface GradesSummary {
+  viewer_role: 'teacher' | 'student'
   assignments: GradeMatrixAssignment[]
   students: GradeMatrixStudent[]
+  class_average: string | null
 }
 
 export interface Notification {
-  id: string
+  id: string | null
   type: string
   payload: Record<string, unknown>
   read: boolean
-  created_at: string
+  created_at: string | null
+  silent?: boolean
 }
 
 export interface AdminUser {

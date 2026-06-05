@@ -212,6 +212,31 @@ async def get_class_detail(db: AsyncSession, class_id: uuid.UUID, current_user: 
     return item
 
 
+async def regenerate_invite_code(
+    db: AsyncSession, class_id: uuid.UUID, current_user: User
+) -> dict:
+    """Regenerate the invite code for a class.
+
+    Allowed for the class teacher_creator, any class teacher, or admin.
+    The old code stops working immediately. For open classes (which don't
+    have an invite code) we still issue one — useful for sharing privately.
+    """
+    cls = await get_class_or_404(db, class_id)
+    membership = await get_membership(db, class_id, current_user.id)
+    is_teacher = membership is not None and is_teacher_role(membership.role)
+    if not (is_teacher or current_user.is_admin):
+        raise ClassError(
+            "FORBIDDEN", "Only teachers or admin can regenerate invite code", 403
+        )
+
+    cls.invite_code = await _generate_unique_invite_code(db)
+    await db.commit()
+    await db.refresh(cls)
+
+    items = await _attach_meta(db, [cls], current_user.id)
+    return items[0]
+
+
 async def update_class(db: AsyncSession, class_id: uuid.UUID, current_user: User, name: str | None) -> dict:
     cls = await get_class_or_404(db, class_id)
     membership = await get_membership(db, class_id, current_user.id)
@@ -334,6 +359,131 @@ async def invite_teacher(db: AsyncSession, class_id: uuid.UUID, current_user: Us
         "username": target.username,
         "email": target.email,
         "avatar_url": target.avatar_url,
+        "role": target_membership.role,
+        "joined_at": target_membership.joined_at,
+    }
+
+
+async def promote_member_to_teacher(
+    db: AsyncSession,
+    class_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+    current_user: User,
+) -> dict:
+    """Promote a class member (currently student) to teacher.
+
+    Allowed for class creator or admin. Already-teacher targets are no-ops
+    that surface as `ALREADY_TEACHER`.
+    """
+    await get_class_or_404(db, class_id)
+    current_membership = await get_membership(db, class_id, current_user.id)
+    is_creator = (
+        current_membership is not None
+        and current_membership.role == MemberRole.teacher_creator
+    )
+    if not (is_creator or current_user.is_admin):
+        raise ClassError(
+            "FORBIDDEN", "Only class creator or admin can change member roles", 403
+        )
+
+    target_membership = await get_membership(db, class_id, target_user_id)
+    if target_membership is None:
+        raise ClassError("MEMBER_NOT_FOUND", "User is not a member of this class", 404)
+    if target_membership.role == MemberRole.teacher_creator:
+        raise ClassError("ALREADY_CREATOR", "User is the class creator", 409)
+    if target_membership.role == MemberRole.teacher:
+        raise ClassError("ALREADY_TEACHER", "User is already a teacher", 409)
+
+    target_membership.role = MemberRole.teacher
+    await db.commit()
+
+    user = (await db.execute(select(User).where(User.id == target_user_id))).scalar_one()
+    return {
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "avatar_url": user.avatar_url,
+        "role": target_membership.role,
+        "joined_at": target_membership.joined_at,
+    }
+
+
+async def demote_member_to_student(
+    db: AsyncSession,
+    class_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+    current_user: User,
+    new_creator_id: uuid.UUID | None = None,
+) -> dict:
+    """Demote a class teacher (or creator) down to student.
+
+    Cases:
+      * target is a regular teacher → just flip role (creator and admin both
+        allowed).
+      * target is teacher_creator → only admin may do this and must pass
+        ``new_creator_id`` pointing at another teacher_creator/teacher member
+        (students are not allowed as new creators).
+    """
+    cls = await get_class_or_404(db, class_id)
+    current_membership = await get_membership(db, class_id, current_user.id)
+    is_creator = (
+        current_membership is not None
+        and current_membership.role == MemberRole.teacher_creator
+    )
+    if not (is_creator or current_user.is_admin):
+        raise ClassError(
+            "FORBIDDEN", "Only class creator or admin can change member roles", 403
+        )
+
+    target_membership = await get_membership(db, class_id, target_user_id)
+    if target_membership is None:
+        raise ClassError("MEMBER_NOT_FOUND", "User is not a member of this class", 404)
+    if target_membership.role == MemberRole.student:
+        raise ClassError("ALREADY_STUDENT", "User is already a student", 409)
+
+    if target_membership.role == MemberRole.teacher_creator:
+        # Demoting the creator means transferring ownership.
+        if not current_user.is_admin:
+            raise ClassError(
+                "FORBIDDEN", "Only admin can demote the class creator", 403
+            )
+        if new_creator_id is None:
+            raise ClassError(
+                "NEW_CREATOR_REQUIRED",
+                "new_creator_id is required when demoting the class creator",
+                422,
+            )
+        if new_creator_id == target_user_id:
+            raise ClassError(
+                "NEW_CREATOR_REQUIRED",
+                "new_creator must be a different user",
+                422,
+            )
+        new_creator_membership = await get_membership(db, class_id, new_creator_id)
+        if new_creator_membership is None:
+            raise ClassError(
+                "NEW_CREATOR_NOT_IN_CLASS",
+                "New creator must be a member of this class",
+                404,
+            )
+        if new_creator_membership.role == MemberRole.student:
+            raise ClassError(
+                "NEW_CREATOR_NOT_TEACHER",
+                "Cannot promote a student to creator — pick a teacher",
+                422,
+            )
+        new_creator_membership.role = MemberRole.teacher_creator
+        cls.creator_id = new_creator_id
+
+    target_membership.role = MemberRole.student
+    await db.commit()
+
+    user = (await db.execute(select(User).where(User.id == target_user_id))).scalar_one()
+    return {
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "avatar_url": user.avatar_url,
         "role": target_membership.role,
         "joined_at": target_membership.joined_at,
     }

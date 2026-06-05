@@ -5,6 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification
+from app.models.user import User
 from app.services.ws_manager import ws_manager
 
 
@@ -33,6 +34,47 @@ async def notify(
                 "created_at": record.created_at.isoformat() if record.created_at else None,
             },
         )
+
+
+async def broadcast(
+    user_ids: Iterable[uuid.UUID],
+    notif_type: str,
+    payload: dict[str, Any],
+) -> None:
+    """Send a WS-only signal (no DB persistence) to the given users.
+
+    Used for realtime feed refreshes for non-student roles (teachers, admins),
+    where a persistent notification would be noisy.
+    """
+    unique_ids = list({uid for uid in user_ids if uid is not None})
+    if not unique_ids:
+        return
+
+    for uid in unique_ids:
+        await ws_manager.send_to_user(
+            uid,
+            {
+                "id": None,
+                "type": notif_type,
+                "payload": payload,
+                "read": True,
+                "created_at": None,
+                "silent": True,
+            },
+        )
+
+
+async def broadcast_admins(
+    db: AsyncSession,
+    notif_type: str,
+    payload: dict[str, Any],
+) -> None:
+    """Broadcast a WS-only signal to all currently active admins."""
+    result = await db.execute(
+        select(User.id).where(User.is_admin.is_(True), User.deleted_at.is_(None))
+    )
+    admin_ids = [row[0] for row in result.all()]
+    await broadcast(admin_ids, notif_type, payload)
 
 
 async def list_notifications(db: AsyncSession, user_id: uuid.UUID) -> list[Notification]:

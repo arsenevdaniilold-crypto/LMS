@@ -41,6 +41,10 @@
         </div>
       </div>
 
+      <p class="muted hint">
+        Нажмите на ячейку с оценкой или статусом, чтобы открыть решение этого студента.
+      </p>
+
       <div class="table-wrap card" style="padding: 0">
         <table class="cf-table">
           <thead>
@@ -55,13 +59,24 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in data.students" :key="s.user_id">
-              <td class="sticky-col td-strong">{{ s.username }}</td>
+            <tr
+              v-for="s in data.students"
+              :key="s.user_id"
+              :class="{ 'row-selected': s.user_id === selectedStudentId }"
+            >
+              <td
+                class="sticky-col td-strong student-cell"
+                :title="'Показать оценки ' + s.username"
+                @click.stop="selectStudent(s.user_id)"
+              >{{ s.username }}</td>
               <td
                 v-for="a in data.assignments"
                 :key="a.id"
                 class="heat-cell"
+                :class="{ clickable: !!s.grades[a.id]?.solution_id }"
                 :style="heatStyle(s.grades[a.id]?.grade, a.grade_type)"
+                :title="s.grades[a.id]?.solution_id ? `Открыть решение «${a.name}» — ${s.username}` : 'Решение ещё не создано'"
+                @click="openSolution(s.grades[a.id]?.solution_id)"
               >
                 <span v-if="s.grades[a.id]?.grade" class="heat-grade">
                   {{ s.grades[a.id].grade }}
@@ -80,6 +95,87 @@
         </table>
       </div>
 
+      <!-- Selected student panel -->
+      <div v-if="selectedStudent" :key="selectedStudent.user_id" class="card student-panel">
+        <div class="student-panel-head">
+          <div>
+            <div class="title-kicker">Оценки студента</div>
+            <h3 class="student-panel-title">{{ selectedStudent.username }}</h3>
+          </div>
+          <button class="btn-ghost" @click="selectedStudentId = null">Закрыть ×</button>
+        </div>
+
+        <div class="student-panel-meta">
+          <span class="muted">Средняя:</span>
+          <b>{{ selectedStudent.average ?? '—' }}</b>
+          <span v-if="selectedStudent.average" class="muted">/ 100</span>
+        </div>
+
+        <div v-if="individualAssignments.length === 0 && groupAssignments.length === 0" class="muted">
+          В классе пока нет заданий.
+        </div>
+
+        <template v-else>
+          <div v-if="individualAssignments.length > 0" class="grade-group">
+            <div class="grade-group-title">Индивидуальные задания</div>
+            <div class="grade-cards">
+              <div
+                v-for="a in individualAssignments"
+                :key="a.id"
+                class="grade-card"
+                :class="{ clickable: !!selectedStudent.grades[a.id]?.solution_id }"
+                @click="openSolution(selectedStudent.grades[a.id]?.solution_id)"
+              >
+                <div class="grade-card-name">{{ a.name }}</div>
+                <div class="grade-card-meta">
+                  <span class="muted">шкала {{ a.grade_type }}</span>
+                  <span
+                    v-if="selectedStudent.grades[a.id]?.status"
+                    class="badge"
+                    :class="statusBadgeClass(selectedStudent.grades[a.id].status!)"
+                  >{{ statusLabel(selectedStudent.grades[a.id].status!) }}</span>
+                </div>
+                <div class="grade-card-value">
+                  {{ selectedStudent.grades[a.id]?.grade ?? '—' }}
+                </div>
+                <div v-if="selectedStudent.grades[a.id]?.solution_id" class="grade-card-link">
+                  Открыть решение →
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="groupAssignments.length > 0" class="grade-group">
+            <div class="grade-group-title">Групповые задания</div>
+            <div class="grade-cards">
+              <div
+                v-for="a in groupAssignments"
+                :key="a.id"
+                class="grade-card"
+                :class="{ clickable: !!selectedStudent.grades[a.id]?.solution_id }"
+                @click="openSolution(selectedStudent.grades[a.id]?.solution_id)"
+              >
+                <div class="grade-card-name">{{ a.name }}</div>
+                <div class="grade-card-meta">
+                  <span class="muted">шкала {{ a.grade_type }} · группа</span>
+                  <span
+                    v-if="selectedStudent.grades[a.id]?.status"
+                    class="badge"
+                    :class="statusBadgeClass(selectedStudent.grades[a.id].status!)"
+                  >{{ statusLabel(selectedStudent.grades[a.id].status!) }}</span>
+                </div>
+                <div class="grade-card-value">
+                  {{ selectedStudent.grades[a.id]?.grade ?? '—' }}
+                </div>
+                <div v-if="selectedStudent.grades[a.id]?.solution_id" class="grade-card-link">
+                  Открыть решение →
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <!-- Heatmap legend -->
       <div class="heat-legend">
         <span class="legend-label">Низкая</span>
@@ -94,15 +190,43 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getClassGrades } from '@/shared/api/solutions'
 import type { GradesSummary, SolutionStatus } from '@/shared/api/types'
 
 const route = useRoute()
+const router = useRouter()
 const data = ref<GradesSummary | null>(null)
 const loading = ref(true)
 
 const classId = computed(() => String(route.params.id))
+
+function openSolution(id: string | null | undefined): void {
+  if (!id) return
+  void router.push({
+    path: `/solutions/${id}`,
+    query: { from: 'grades', class: classId.value },
+  })
+}
+
+const selectedStudentId = ref<string | null>(null)
+
+function selectStudent(id: string): void {
+  // Toggle: clicking the same student again closes the panel.
+  selectedStudentId.value = selectedStudentId.value === id ? null : id
+}
+
+const selectedStudent = computed(() => {
+  if (!data.value || !selectedStudentId.value) return null
+  return data.value.students.find((s) => s.user_id === selectedStudentId.value) ?? null
+})
+
+const individualAssignments = computed(() =>
+  data.value?.assignments.filter((a) => a.type === 'individual') ?? [],
+)
+const groupAssignments = computed(() =>
+  data.value?.assignments.filter((a) => a.type === 'group') ?? [],
+)
 
 function statusLabel(s: SolutionStatus): string {
   switch (s) {
@@ -243,6 +367,11 @@ onMounted(async () => {
   margin-bottom: 14px;
 }
 
+.hint {
+  font-size: 13px;
+  margin: 16px 0;
+}
+
 .th-link { color: inherit; font-weight: 800; }
 .th-link:hover { color: var(--color-primary); text-decoration: none; }
 .th-sub {
@@ -265,9 +394,15 @@ thead .sticky-col { background: var(--color-bg-2); }
 .heat-cell {
   text-align: center;
   font-weight: 800;
-  transition: filter var(--dur-fast) var(--ease-out);
+  transition: filter var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
 .heat-cell:hover { filter: brightness(0.97); }
+.heat-cell.clickable { cursor: pointer; }
+.heat-cell.clickable:hover {
+  filter: brightness(0.92);
+  transform: scale(1.02);
+}
 .heat-grade {
   font-family: var(--font-display);
   font-size: 16px;
@@ -311,4 +446,103 @@ thead .sticky-col { background: var(--color-bg-2); }
 }
 .empty-glyph { font-size: 32px; color: var(--color-primary); margin-bottom: 14px; }
 .empty-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+
+.td-strong { font-weight: 800; }
+
+.student-cell {
+  cursor: pointer;
+  font-weight: 800;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.student-cell:hover { color: var(--color-primary); }
+.row-selected .sticky-col {
+  background: var(--color-primary-ring) !important;
+  color: var(--color-primary);
+}
+.row-selected td { background: rgba(38, 75, 209, 0.06); }
+
+/* Student panel */
+.student-panel {
+  margin-top: 22px;
+  padding: 22px 24px;
+}
+.student-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.student-panel-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+}
+.student-panel-meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+.student-panel-meta b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--color-primary);
+}
+
+.grade-group + .grade-group { margin-top: 22px; }
+.grade-group-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  margin-bottom: 10px;
+}
+.grade-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.grade-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: 6px;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.grade-card.clickable { cursor: pointer; }
+.grade-card.clickable:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.grade-card-name { font-weight: 800; font-size: 15px; line-height: 1.2; }
+.grade-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.grade-card-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-primary);
+  text-align: right;
+}
+.grade-card-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+}
 </style>

@@ -53,6 +53,11 @@ export async function deleteClass(id: string): Promise<void> {
   await http.delete(`/classes/${id}`)
 }
 
+export async function regenerateInviteCode(id: string): Promise<ClassDetail> {
+  const { data } = await http.post<ClassDetail>(`/classes/${id}/regenerate-invite`)
+  return data
+}
+
 export async function joinByCode(invite_code: string): Promise<ClassDetail> {
   const { data } = await http.post<ClassDetail>('/classes/join', { invite_code })
   return data
@@ -75,4 +80,20 @@ export async function inviteTeacher(id: string, email: string): Promise<ClassMem
 
 export async function removeMember(id: string, userId: string): Promise<void> {
   await http.delete(`/classes/${id}/members/${userId}`)
+}
+
+export async function promoteMember(id: string, userId: string): Promise<ClassMember> {
+  const { data } = await http.post<ClassMember>(`/classes/${id}/members/${userId}/promote`)
+  return data
+}
+
+export async function demoteMember(
+  id: string,
+  userId: string,
+  newCreatorId?: string,
+): Promise<ClassMember> {
+  const { data } = await http.post<ClassMember>(`/classes/${id}/members/${userId}/demote`, {
+    new_creator_id: newCreatorId ?? null,
+  })
+  return data
 }

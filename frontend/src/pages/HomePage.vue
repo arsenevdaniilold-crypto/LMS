@@ -57,7 +57,18 @@
       </div>
     </div>
 
-    <h2 class="section-title" style="margin-top: 10px">Мои классы</h2>
+    <div class="my-classes-head">
+      <h2 class="section-title" style="margin-top: 10px">Мои классы</h2>
+      <div v-if="items.length > 0" class="role-filter">
+        <button
+          v-for="f in roleFilters"
+          :key="f.id"
+          class="chip"
+          :class="{ on: roleFilter === f.id }"
+          @click="roleFilter = f.id"
+        >{{ f.label }} <span class="chip-count">{{ filterCount(f.id) }}</span></button>
+      </div>
+    </div>
 
     <!-- Join panel -->
     <Transition name="panel">
@@ -128,10 +139,19 @@
       </div>
     </div>
 
+    <!-- Filtered empty state -->
+    <div
+      v-else-if="filteredItems.length === 0"
+      class="card muted"
+      style="text-align: center; padding: 32px"
+    >
+      В этой роли пока нет классов.
+    </div>
+
     <!-- Class grid -->
     <div v-else class="catalog">
       <RouterLink
-        v-for="(cls, i) in items"
+        v-for="(cls, i) in filteredItems"
         :key="cls.id"
         :to="`/classes/${cls.id}`"
         class="card catalog-card reveal"
@@ -181,6 +201,30 @@ const teacherCount = computed(() =>
 const studentCount = computed(() =>
   items.value.filter((c) => c.my_role === 'student').length,
 )
+
+type RoleFilter = 'all' | 'creator' | 'teacher' | 'student'
+const roleFilter = ref<RoleFilter>('all')
+const roleFilters: { id: RoleFilter; label: string }[] = [
+  { id: 'all', label: 'Все' },
+  { id: 'creator', label: 'Создатель' },
+  { id: 'teacher', label: 'Преподаватель' },
+  { id: 'student', label: 'Студент' },
+]
+
+function matchesFilter(cls: ClassResponse, f: RoleFilter): boolean {
+  if (f === 'all') return true
+  if (f === 'creator') return cls.my_role === 'teacher_creator'
+  if (f === 'teacher') return cls.my_role === 'teacher'
+  return cls.my_role === 'student'
+}
+
+const filteredItems = computed(() =>
+  items.value.filter((c) => matchesFilter(c, roleFilter.value)),
+)
+
+function filterCount(f: RoleFilter): number {
+  return items.value.filter((c) => matchesFilter(c, f)).length
+}
 
 const showJoin = ref(false)
 const joinCode = ref('')
@@ -271,6 +315,59 @@ onMounted(load)
 }
 
 .split-title-right button.active { box-shadow: 0 0 0 3px var(--color-primary-ring); }
+
+/* ---------- My classes filter ---------- */
+.my-classes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+.my-classes-head .section-title { margin: 0; }
+.role-filter {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.chip:hover { background: var(--color-bg-2); color: var(--color-text); }
+.chip.on {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-weight: 800;
+}
+.chip.on .chip-count { background: rgba(255, 255, 255, 0.22); }
 
 /* ---------- Action panels ---------- */
 .action-panel { margin-bottom: 24px; }

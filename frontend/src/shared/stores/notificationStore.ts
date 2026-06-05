@@ -11,6 +11,10 @@ export function onNotification(fn: Listener): () => void {
   return () => listeners.delete(fn)
 }
 
+function isSilent(n: Notification): boolean {
+  return Boolean(n.silent) || n.id === null
+}
+
 export const useNotificationStore = defineStore('notifications', () => {
   const items = ref<Notification[]>([])
   const loading = ref(false)
@@ -27,7 +31,12 @@ export const useNotificationStore = defineStore('notifications', () => {
   }
 
   function handleIncoming(notif: Notification): void {
-    items.value = [notif, ...items.value]
+    // Silent broadcasts (no DB persistence, e.g. realtime feed refresh
+    // for teachers/admins) are not shown in the bell — only fan out to
+    // listeners (ClassDetailPage, etc.).
+    if (!isSilent(notif)) {
+      items.value = [notif, ...items.value]
+    }
     for (const fn of listeners) {
       try { fn(notif) } catch { /* swallow */ }
     }

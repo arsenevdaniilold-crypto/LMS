@@ -92,6 +92,7 @@ class GradeMatrixStudent(BaseModel):
     user_id: uuid.UUID
     username: str
     grades: dict[uuid.UUID, GradeMatrixCell]
+    average: Decimal | None = None
 
 
 class GradeMatrixAssignment(BaseModel):
@@ -102,5 +103,7 @@ class GradeMatrixAssignment(BaseModel):
 
 
 class GradesSummaryResponse(BaseModel):
+    viewer_role: str
     assignments: list[GradeMatrixAssignment]
     students: list[GradeMatrixStudent]
+    class_average: Decimal | None = None

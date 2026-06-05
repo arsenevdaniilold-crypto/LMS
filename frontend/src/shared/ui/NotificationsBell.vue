@@ -18,7 +18,7 @@
         <div v-else-if="notif.items.length === 0" class="muted">Пока пусто</div>
         <button
           v-for="n in notif.items"
-          :key="n.id"
+          :key="n.id ?? n.type"
           class="notif-item"
           :class="{ unread: !n.read }"
           @click="onClick(n)"
@@ -97,7 +97,8 @@ function titleFor(n: Notification): string {
   }
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
   const d = new Date(iso)
   return d.toLocaleString('ru-RU', {
     day: '2-digit',
@@ -108,7 +109,7 @@ function formatDate(iso: string): string {
 }
 
 async function onClick(n: Notification) {
-  await notif.markOneRead(n.id)
+  if (n.id) await notif.markOneRead(n.id)
   const p = n.payload as Record<string, string>
   open.value = false
   if (n.type.startsWith('announcement_') && p.class_id) {

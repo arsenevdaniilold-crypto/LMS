@@ -102,18 +102,15 @@ async def create_announcement(
 
     member_ids = await classes_service.get_member_ids(db, cls.id)
     recipients = [uid for uid in member_ids if uid != author.id]
-    await notifications_service.notify(
-        db,
-        recipients,
-        "announcement_created",
-        {
-            "class_id": str(cls.id),
-            "class_name": cls.name,
-            "announcement_id": str(announcement.id),
-            "title": announcement.title,
-            "author_username": author.username,
-        },
-    )
+    payload = {
+        "class_id": str(cls.id),
+        "class_name": cls.name,
+        "announcement_id": str(announcement.id),
+        "title": announcement.title,
+        "author_username": author.username,
+    }
+    await notifications_service.notify(db, recipients, "announcement_created", payload)
+    await notifications_service.broadcast_admins(db, "announcement_created", payload)
     await db.commit()
 
     return _serialize(announcement, list(files_result.scalars().all()), author)
@@ -176,17 +173,14 @@ async def update_announcement(
     cls = await classes_service.get_class_or_404(db, announcement.class_id)
     member_ids = await classes_service.get_member_ids(db, announcement.class_id)
     recipients = [uid for uid in member_ids if uid != current_user.id]
-    await notifications_service.notify(
-        db,
-        recipients,
-        "announcement_updated",
-        {
-            "class_id": str(announcement.class_id),
-            "class_name": cls.name,
-            "announcement_id": str(announcement.id),
-            "title": announcement.title,
-        },
-    )
+    payload = {
+        "class_id": str(announcement.class_id),
+        "class_name": cls.name,
+        "announcement_id": str(announcement.id),
+        "title": announcement.title,
+    }
+    await notifications_service.notify(db, recipients, "announcement_updated", payload)
+    await notifications_service.broadcast_admins(db, "announcement_updated", payload)
     await db.commit()
     await db.refresh(announcement)
 
@@ -223,16 +217,13 @@ async def delete_announcement(db: AsyncSession, announcement_id: uuid.UUID, curr
     recipients = [uid for uid in member_ids if uid != current_user.id]
 
     await db.delete(announcement)
-    await notifications_service.notify(
-        db,
-        recipients,
-        "announcement_deleted",
-        {
-            "class_id": str(class_id),
-            "class_name": cls.name,
-            "announcement_id": str(announcement_id),
-        },
-    )
+    payload = {
+        "class_id": str(class_id),
+        "class_name": cls.name,
+        "announcement_id": str(announcement_id),
+    }
+    await notifications_service.notify(db, recipients, "announcement_deleted", payload)
+    await notifications_service.broadcast_admins(db, "announcement_deleted", payload)
     await db.commit()
 
     for f in files:

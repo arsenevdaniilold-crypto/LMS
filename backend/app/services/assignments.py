@@ -154,19 +154,21 @@ async def create_assignment(
     )
 
     student_ids = await classes_service.get_member_ids(db, cls.id, roles=(MemberRole.student,))
-    await notifications_service.notify(
-        db,
-        student_ids,
-        "assignment_created",
-        {
-            "class_id": str(cls.id),
-            "class_name": cls.name,
-            "assignment_id": str(assignment.id),
-            "name": assignment.name,
-            "type": assignment.type.value,
-            "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
-        },
+    payload = {
+        "class_id": str(cls.id),
+        "class_name": cls.name,
+        "assignment_id": str(assignment.id),
+        "name": assignment.name,
+        "type": assignment.type.value,
+        "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
+    }
+    await notifications_service.notify(db, student_ids, "assignment_created", payload)
+    teacher_ids = await classes_service.get_member_ids(
+        db, cls.id, roles=(MemberRole.teacher_creator, MemberRole.teacher)
     )
+    teacher_ids = [uid for uid in teacher_ids if uid != author.id]
+    await notifications_service.broadcast(teacher_ids, "assignment_created", payload)
+    await notifications_service.broadcast_admins(db, "assignment_created", payload)
     await db.commit()
 
     return _serialize(assignment, list(materials_result.scalars().all()), author)
@@ -245,18 +247,20 @@ async def update_assignment(
 
     cls = await classes_service.get_class_or_404(db, assignment.class_id)
     student_ids = await classes_service.get_member_ids(db, assignment.class_id, roles=(MemberRole.student,))
-    await notifications_service.notify(
-        db,
-        student_ids,
-        "assignment_updated",
-        {
-            "class_id": str(assignment.class_id),
-            "class_name": cls.name,
-            "assignment_id": str(assignment.id),
-            "name": assignment.name,
-            "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
-        },
+    payload = {
+        "class_id": str(assignment.class_id),
+        "class_name": cls.name,
+        "assignment_id": str(assignment.id),
+        "name": assignment.name,
+        "deadline": assignment.deadline.isoformat() if assignment.deadline else None,
+    }
+    await notifications_service.notify(db, student_ids, "assignment_updated", payload)
+    teacher_ids = await classes_service.get_member_ids(
+        db, assignment.class_id, roles=(MemberRole.teacher_creator, MemberRole.teacher)
     )
+    teacher_ids = [uid for uid in teacher_ids if uid != current_user.id]
+    await notifications_service.broadcast(teacher_ids, "assignment_updated", payload)
+    await notifications_service.broadcast_admins(db, "assignment_updated", payload)
     await db.commit()
     await db.refresh(assignment)
     return await get_assignment_detail(db, assignment.id, current_user)
@@ -281,20 +285,22 @@ async def delete_assignment(db: AsyncSession, assignment_id: uuid.UUID, current_
     class_id = assignment.class_id
     cls = await classes_service.get_class_or_404(db, class_id)
     student_ids = await classes_service.get_member_ids(db, class_id, roles=(MemberRole.student,))
+    teacher_ids = await classes_service.get_member_ids(
+        db, class_id, roles=(MemberRole.teacher_creator, MemberRole.teacher)
+    )
+    teacher_ids = [uid for uid in teacher_ids if uid != current_user.id]
     assignment_name = assignment.name
 
     await db.delete(assignment)
-    await notifications_service.notify(
-        db,
-        student_ids,
-        "assignment_deleted",
-        {
-            "class_id": str(class_id),
-            "class_name": cls.name,
-            "assignment_id": str(assignment_id),
-            "name": assignment_name,
-        },
-    )
+    payload = {
+        "class_id": str(class_id),
+        "class_name": cls.name,
+        "assignment_id": str(assignment_id),
+        "name": assignment_name,
+    }
+    await notifications_service.notify(db, student_ids, "assignment_deleted", payload)
+    await notifications_service.broadcast(teacher_ids, "assignment_deleted", payload)
+    await notifications_service.broadcast_admins(db, "assignment_deleted", payload)
     await db.commit()
 
     for m in materials:

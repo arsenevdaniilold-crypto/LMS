@@ -8,9 +8,18 @@
     <div v-else-if="!solution || !assignment" class="card muted">Решение не найдено</div>
 
     <template v-else>
-      <RouterLink :to="`/assignments/${assignment.id}`" class="back-link">
-        ← К заданию «{{ assignment.name }}»
-      </RouterLink>
+      <div class="back-row">
+        <RouterLink
+          v-if="cameFromGrades && gradesClassId"
+          :to="`/classes/${gradesClassId}/grades`"
+          class="back-link"
+        >
+          ← К сводной таблице
+        </RouterLink>
+        <RouterLink :to="`/assignments/${assignment.id}`" class="back-link">
+          ← К заданию «{{ assignment.name }}»
+        </RouterLink>
+      </div>
 
       <div class="split-title">
         <div>
@@ -52,6 +61,11 @@ import SolutionCard from '@/shared/ui/SolutionCard.vue'
 import StatusTimeline, { type TimelineStep } from '@/shared/ui/StatusTimeline.vue'
 
 const route = useRoute()
+const cameFromGrades = computed(() => route.query.from === 'grades')
+const gradesClassId = computed(() => {
+  const v = route.query.class
+  return typeof v === 'string' ? v : null
+})
 const solution = ref<Solution | null>(null)
 const assignment = ref<Assignment | null>(null)
 const isTeacher = ref(false)
@@ -206,12 +220,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.back-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+}
 .back-link {
   font-size: 13px;
   color: var(--color-text-muted);
   display: inline-block;
-  margin-bottom: 14px;
 }
+.back-link:hover { color: var(--color-primary); }
 .timeline-card {
   padding: 22px 30px;
   margin-bottom: 18px;

@@ -15,6 +15,7 @@ from app.schemas.class_ import (
     ClassMemberResponse,
     ClassResponse,
     ClassUpdateRequest,
+    DemoteMemberRequest,
     InviteTeacherRequest,
 )
 from app.services import classes as classes_service
@@ -103,6 +104,18 @@ async def get_class(
         _raise_class_error(exc)
 
 
+@router.post("/{class_id}/regenerate-invite", response_model=ClassDetailResponse)
+async def regenerate_invite_code(
+    class_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await classes_service.regenerate_invite_code(db, class_id, current_user)
+    except ClassError as exc:
+        _raise_class_error(exc)
+
+
 @router.patch("/{class_id}", response_model=ClassDetailResponse)
 async def update_class(
     class_id: uuid.UUID,
@@ -150,6 +163,43 @@ async def invite_teacher(
 ):
     try:
         return await classes_service.invite_teacher(db, class_id, current_user, body.email)
+    except ClassError as exc:
+        _raise_class_error(exc)
+
+
+@router.post(
+    "/{class_id}/members/{user_id}/promote",
+    response_model=ClassMemberResponse,
+)
+async def promote_member(
+    class_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await classes_service.promote_member_to_teacher(
+            db, class_id, user_id, current_user
+        )
+    except ClassError as exc:
+        _raise_class_error(exc)
+
+
+@router.post(
+    "/{class_id}/members/{user_id}/demote",
+    response_model=ClassMemberResponse,
+)
+async def demote_member(
+    class_id: uuid.UUID,
+    user_id: uuid.UUID,
+    body: DemoteMemberRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await classes_service.demote_member_to_student(
+            db, class_id, user_id, current_user, body.new_creator_id
+        )
     except ClassError as exc:
         _raise_class_error(exc)
 

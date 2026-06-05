@@ -50,6 +50,10 @@ class InviteTeacherRequest(BaseModel):
     email: EmailStr
 
 
+class DemoteMemberRequest(BaseModel):
+    new_creator_id: uuid.UUID | None = None
+
+
 class CreatorResponse(BaseModel):
     id: uuid.UUID
     username: str
